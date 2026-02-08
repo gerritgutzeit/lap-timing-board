@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --f1-red: #e10600;
+  --f1-dark: #0a0a0a;
+  --f1-panel: #15151a;
+  --f1-border: #2a2a32;
+}
+
+body {
+  @apply bg-f1-dark text-f1-text antialiased;
+  font-feature-settings: "tnum";
+}
+
+/* Timing board row highlight */
+.timing-row {
+  @apply transition-all duration-200;
+}
+.timing-row:hover {
+  @apply bg-white/5;
+}
+
+/* Dashboard grid background – very subtle */
+.dashboard-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Techie embedded value (no border, subtle glow) */
+.techie-embed {
+  background-color: rgba(26, 26, 26, 0.9);
+  padding: 0.2em 0.5em;
+  border-radius: 2px;
+}
+
+/* Dashboard animations – initial state for animated elements */
+.dash-track-enter {
+  opacity: 0;
+  transform: translateY(16px) scale(0.98);
+}
+.dash-lap-enter {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.lap-time-updated {
+  animation: timeFlash 0.6s ease-out;
+}
+@keyframes timeFlash {
+  0% { background-color: rgba(192, 192, 192, 0.2); border-radius: 2px; }
+  100% { background-color: transparent; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-f1-panel;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-f1-border rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-f1-muted;
+}
