@@ -277,34 +277,39 @@ export default function DashboardPage() {
               <>
                 <div className="mb-8">
                   <p className="text-techie-dim text-xs uppercase tracking-widest mb-2">Fastest lap</p>
-                  <p className="font-display font-bold text-techie-text text-4xl md:text-5xl lg:text-6xl tracking-tight tabular-nums lap-time-updated">
+                  <p className="font-display font-bold text-techie-text text-4xl md:text-5xl lg:text-6xl tracking-tight tabular-nums lap-time-updated w-fit">
                     {singleTrackLaps[0].lap_time}
                   </p>
-                  <p className="text-techie-accent text-lg md:text-xl mt-2 uppercase tracking-wide">
+                  <p className="text-techie-accent text-lg md:text-xl mt-2 uppercase tracking-wide w-fit">
                     {singleTrackLaps[0].driver_name}
                   </p>
                 </div>
                 <div className="space-y-2">
                   <p className="text-techie-dim text-xs uppercase tracking-widest mb-3">Slower times</p>
-                  {singleTrackLaps.slice(1, 11).map((lap, index) => {
-                    const delta = lapTimeToSeconds(lap.lap_time) - fastestSeconds;
-                    return (
-                      <div
-                        key={`fullscreen-lap-${lap.id}`}
-                        className="flex items-baseline justify-between gap-4 py-2 border-b border-white/5 last:border-0"
-                      >
-                        <span className="text-techie-text truncate uppercase">
-                          {lap.driver_name}
-                        </span>
-                        <span className="techie-embed font-mono tabular-nums text-techie-accent shrink-0 lap-time-updated">
-                          {lap.lap_time}
-                        </span>
-                        <span className="font-mono tabular-nums text-techie-dim text-sm shrink-0 w-16 text-right">
-                          {formatDelta(delta)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  <div className="grid grid-cols-[1fr_7rem_5rem] gap-4 items-baseline">
+                    <span className="text-techie-dim text-xs uppercase tracking-widest py-1 border-b border-white/10">Driver</span>
+                    <span className="text-techie-dim text-xs uppercase tracking-widest py-1 border-b border-white/10 text-right">Time</span>
+                    <span className="text-techie-dim text-xs uppercase tracking-widest py-1 border-b border-white/10 text-right">Delta</span>
+                    {singleTrackLaps.slice(1, 11).map((lap) => {
+                      const delta = lapTimeToSeconds(lap.lap_time) - fastestSeconds;
+                      return (
+                        <div
+                          key={`fullscreen-lap-${lap.id}`}
+                          className="contents"
+                        >
+                          <span className="text-techie-text truncate uppercase py-2 border-b border-white/5">
+                            {lap.driver_name}
+                          </span>
+                          <span className="techie-embed font-mono tabular-nums text-techie-accent lap-time-updated py-2 border-b border-white/5 text-right">
+                            {lap.lap_time}
+                          </span>
+                          <span className="font-mono tabular-nums text-techie-dim text-sm py-2 border-b border-white/5 text-right">
+                            {formatDelta(delta)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
