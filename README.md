@@ -102,18 +102,27 @@ npm start
 
 Set `NEXT_PUBLIC_API_URL` to your backend URL (e.g. `https://api.example.com`) when building the frontend for production.
 
-## Docker (optional)
+## Deploy with Docker (easy setup)
 
-From project root:
+From the project root:
 
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
 
-- Frontend: http://localhost:3000  
-- Backend API: http://localhost:3001  
+- **Frontend:** http://localhost:3000  
+- **Backend API:** http://localhost:3001  
 
-Database file is persisted in a volume; restarting containers keeps data.
+Database and track outline uploads are stored in Docker volumes, so data survives restarts.
+
+**Deploying on a server (e.g. VPS):**  
+The frontend is built with the API URL that the *browser* will use. For same-machine Docker the default `http://localhost:3001/api` is fine. If users reach the app at a different host (e.g. `http://192.168.1.100:3000`), create a `.env` in the project root and set:
+
+```bash
+NEXT_PUBLIC_API_URL=http://192.168.1.100:3001/api
+```
+
+Then run `docker-compose up --build -d` so the frontend is rebuilt with that URL. Replace the host/port with your server’s address (and use `https://` if you put a reverse proxy in front).
 
 ## Project structure
 
