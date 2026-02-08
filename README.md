@@ -1,8 +1,8 @@
-# F1 Timing Dashboard
+# Race Timing Dashboard
 
 ![Dashboard screenshot](image1.jpg)
 
-A professional Formula 1 timing board dashboard with a live display and admin backend to manage tracks and lap times.
+Race Timing Dashboard — professional live timing board for F1, karting, or other racing events, with an admin backend to manage tracks and lap times.
 
 ## Tech Stack
 
