@@ -10,7 +10,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({ origin: true }));
-app.use(express.json());
+// Allow larger JSON payloads for track outline image uploads (base64)
+app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/tracks', tracksRouter);
 app.use('/api/laps', lapsRouter);
