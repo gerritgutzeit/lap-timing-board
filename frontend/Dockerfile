@@ -6,7 +6,8 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api
+# Only set if provided (e.g. from compose). Empty = app will use browser hostname at runtime for API URL.
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN npm run build
 

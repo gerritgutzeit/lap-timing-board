@@ -129,11 +129,19 @@ docker-compose up --build -d
 - **Backend:** http://localhost:3001  
 - Data (DB + uploads) is stored in Docker volumes.
 
-**Custom host:** If the app is reached at another URL (e.g. `http://myserver:3000`), set before building/pulling:
+The frontend uses the **browser’s host** for the API when you don’t set `NEXT_PUBLIC_API_URL`, so the same image works when you open the app from another machine (e.g. `http://server-ip:3000` → API: `http://server-ip:3001/api`). To force a specific URL (e.g. for a reverse proxy), set before building:
 
 ```bash
 NEXT_PUBLIC_API_URL=http://myserver:3001/api
 ```
+
+**How to check that the API URL is correct**
+
+1. Open the app from the machine you care about (same PC or another on the network).
+2. Open DevTools (F12) → **Network** tab.
+3. Use the app (e.g. open Admin, load tracks or save something).
+4. Click any request to your API (e.g. `tracks`, `config/...`). The request URL should use the **same host** as the page (e.g. `http://192.168.1.50:3001/api/...` when you opened `http://192.168.1.50:3000`). If you see `http://localhost:3001/...` while the page is `http://server-ip:3000`, rebuild the frontend without setting `NEXT_PUBLIC_API_URL` and redeploy.
+5. In **Admin**, the header shows **API: http://…** — that should match the host you used to open the page (e.g. `http://192.168.1.50:3001` when you opened `http://192.168.1.50:3000`).
 
 ### Portainer
 

@@ -1,9 +1,9 @@
 const DEFAULT_API_PORT = '3001';
 
-/** Resolve API base URL: use build-time override, or in the browser use current host + port so the same build works when opened from another machine on the network. */
-function getApiBase(): string {
+/** Resolve API base URL: use build-time override, or in the browser use current host + port so the same build works when opened from another machine on the network. Exported for debugging (e.g. in console: check which URL the app uses). */
+export function getApiBase(): string {
   const buildUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (buildUrl) return buildUrl;
+  if (buildUrl && buildUrl !== 'undefined') return buildUrl;
   if (typeof window !== 'undefined')
     return `${window.location.protocol}//${window.location.hostname}:${DEFAULT_API_PORT}/api`;
   return `http://localhost:${DEFAULT_API_PORT}/api`;

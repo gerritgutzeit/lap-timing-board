@@ -20,6 +20,7 @@ import {
   deleteLap,
   exportDatabase,
   importDatabase,
+  getApiBase,
   type Track,
   type Lap,
   type DatabaseBackup,
@@ -51,6 +52,11 @@ export default function AdminPage() {
   const [editingLapId, setEditingLapId] = useState<number | null>(null);
   const [editDriver, setEditDriver] = useState('');
   const [editLapTime, setEditLapTime] = useState('');
+  const [apiBase, setApiBase] = useState<string>('');
+
+  useEffect(() => {
+    setApiBase(getApiBase());
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -340,6 +346,11 @@ export default function AdminPage() {
           >
             ← Dashboard
           </Link>
+          {apiBase && (
+            <span className="text-xs text-f1-muted font-mono" title="API base URL (for checking network access)">
+              API: {apiBase.replace(/\/api\/?$/, '')}
+            </span>
+          )}
         </div>
       </header>
 
