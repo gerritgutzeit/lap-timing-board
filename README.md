@@ -1,151 +1,148 @@
-# Race Timing Dashboard
+<p align="center">
+  <strong>Race Timing Dashboard</strong>
+</p>
 
-![Dashboard screenshot](image1.jpg)
+<p align="center">
+  Live timing board for F1, karting, or any track — dark UI, admin backend, Docker-ready.
+</p>
 
-Race Timing Dashboard — professional live timing board for F1, karting, or other racing events, with an admin backend to manage tracks and lap times.
+<details open>
+<summary><b>📸 Screenshots</b></summary>
 
-## Tech Stack
+<p align="center">
+  <img src="assets/image1.jpg" alt="Dashboard" width="32%" />
+  <img src="assets/image2.jpg" alt="Admin panel" width="32%" />
+  <img src="assets/image3.jpg" alt="Fullscreen view" width="32%" />
+</p>
 
-- **Frontend:** Next.js (App Router), React, TailwindCSS
-- **Backend:** Node.js, Express, SQLite ([sql.js](https://sql.js.org/) — pure JavaScript, no native build or Python required)
-- **API:** REST (tracks & laps CRUD, fastest laps per track)
+<p align="center">
+  <sub><b>Dashboard</b></sub> &nbsp;·&nbsp; <sub><b>Admin</b></sub> &nbsp;·&nbsp; <sub><b>Fullscreen</b></sub>
+</p>
+
+</details>
+
+---
+
+## Contents
+
+- [Tech stack](#tech-stack)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Development](#development)
+- [API](#api)
+- [Production & deployment](#production--deployment)
+- [Project structure](#project-structure)
+- [License](#license)
+
+---
+
+## Tech stack
+
+| Layer    | Stack |
+| -------- | ----- |
+| **Frontend** | Next.js (App Router), React, TailwindCSS, TypeScript |
+| **Backend**  | Node.js, Express |
+| **Database** | SQLite via [sql.js](https://sql.js.org/) (no native build) |
+| **API**      | REST (tracks, laps, config) |
+
+---
 
 ## Features
 
-- **Dashboard:** Track selector, fastest laps per track, auto-refresh every 5 seconds, F1-inspired dark UI
-- **Admin:** Create/delete tracks, add/delete lap times (format `mm:ss.xxx`), list all laps
+- **Dashboard** — Multi-track or single-track fullscreen, fastest laps, auto-refresh (5s), optional track outline per track
+- **Admin** — Headline & status, dashboard track selection, track outline upload (PNG), tracks & lap times (format `m:ss.xxx`), driver management
+- **Deploy** — Docker Compose or Portainer (Git or pre-built images)
 
-## Prerequisites
+---
 
-- Node.js 18+
-- npm (or yarn/pnpm)
+## Quick start
 
-## Install
+**Prerequisites:** Node.js 18+, npm
 
 ```bash
-# Clone and enter project
+git clone <your-repo-url>
 cd Formel1Dash
-
-# Backend
-cd backend
-npm install
-
-# Frontend (from project root)
-cd ../frontend
-npm install
 ```
-
-## Database setup
-
-The backend creates the SQLite database and tables on first run. To initialize the DB explicitly:
-
-```bash
-cd backend
-npm run db:init
-```
-
-This creates `backend/f1timing.db` and the `tracks` / `laps` tables.
-
-## Run (development)
-
-**Terminal 1 – Backend**
-
-```bash
-cd backend
-npm run dev
-```
-
-API: http://localhost:3001
-
-**Terminal 2 – Frontend**
-
-```bash
-cd frontend
-npm run dev
-```
-
-App: http://localhost:3000
-
-## Dev workflow
-
-1. Start backend and frontend as above.
-2. Open http://localhost:3000 → **Admin** to add tracks and lap times.
-3. Open http://localhost:3000/dashboard to view the live timing board; select a track and see fastest laps, auto-refreshing every 5s.
-
-## API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/tracks` | List all tracks |
-| GET | `/api/tracks/:id` | Get one track |
-| POST | `/api/tracks` | Create track `{ name, country }` |
-| DELETE | `/api/tracks/:id` | Delete track |
-| GET | `/api/laps` | List all laps (optional `?track_id=`) |
-| GET | `/api/laps/track/:trackId` | Fastest laps for track (ordered by lap_time) |
-| POST | `/api/laps` | Create lap `{ driver_name, lap_time, track_id }` |
-| DELETE | `/api/laps/:id` | Delete lap |
-
-## Production build
 
 **Backend**
 
 ```bash
-cd backend
-npm start
+cd backend && npm install && npm run dev
 ```
 
-**Frontend**
+**Frontend** (new terminal)
 
 ```bash
-cd frontend
-npm run build
-npm start
+cd frontend && npm install && npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` to your backend URL (e.g. `https://api.example.com`) when building the frontend for production.
+- **App:** [http://localhost:3000](http://localhost:3000)  
+- **API:** [http://localhost:3001](http://localhost:3001)
 
-## Deploy with Docker (easy setup)
+The SQLite DB and tables are created on first run. To init explicitly: `cd backend && npm run db:init`.
 
-From the project root:
+---
+
+## Development
+
+1. Open **http://localhost:3000** → **Admin** to add tracks and lap times.
+2. Open **http://localhost:3000/dashboard** for the live timing board (select tracks in Admin → Dashboard track selection).
+
+---
+
+## API
+
+| Method | Endpoint | Description |
+| :----: | -------- | ----------- |
+| GET | `/api/tracks` | List tracks |
+| GET | `/api/tracks/:id` | Get one track |
+| POST | `/api/tracks` | Create track `{ name, country }` |
+| DELETE | `/api/tracks/:id` | Delete track |
+| GET | `/api/laps` | List laps (optional `?track_id=`) |
+| GET | `/api/laps/track/:trackId` | Fastest laps for track |
+| POST | `/api/laps` | Create lap `{ driver_name, lap_time, track_id }` |
+| DELETE | `/api/laps/:id` | Delete lap |
+
+---
+
+## Production & deployment
+
+### Local production build
+
+```bash
+# Backend
+cd backend && npm start
+
+# Frontend (set NEXT_PUBLIC_API_URL to your API URL first)
+cd frontend && npm run build && npm start
+```
+
+### Docker (one command)
+
+From project root:
 
 ```bash
 docker-compose up --build -d
 ```
 
 - **Frontend:** http://localhost:3000  
-- **Backend API:** http://localhost:3001  
+- **Backend:** http://localhost:3001  
+- Data (DB + uploads) is stored in Docker volumes.
 
-Database and track outline uploads are stored in Docker volumes, so data survives restarts.
-
-**Deploying on a server (e.g. VPS):**  
-The frontend is built with the API URL that the *browser* will use. For same-machine Docker the default `http://localhost:3001/api` is fine. If users reach the app at a different host (e.g. `http://192.168.1.100:3000`), create a `.env` in the project root and set:
+**Custom host:** If the app is reached at another URL (e.g. `http://myserver:3000`), set before building/pulling:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://192.168.1.100:3001/api
+NEXT_PUBLIC_API_URL=http://myserver:3001/api
 ```
 
-Then run `docker-compose up --build -d` so the frontend is rebuilt with that URL. Replace the host/port with your server’s address (and use `https://` if you put a reverse proxy in front).
+### Portainer
 
-## Deploy on Portainer
+| Scenario | What to do |
+| -------- | ---------- |
+| **Standalone (build allowed)** | Stacks → Add stack → **Git repository** → repo URL, Compose path: `docker-compose.yml` → Deploy. Optionally set `NEXT_PUBLIC_API_URL`. |
+| **Swarm / no build** | Build and push images locally (see below), then Stacks → **Web editor** → paste `docker-compose.portainer.yml` → set env `REGISTRY=YOUR_DOCKERHUB_USER` → Deploy. |
 
-### Option A: Stack from Git (when build is supported)
-
-1. In Portainer: **Stacks** → **Add stack**.
-2. **Name:** e.g. `formel1dash`.
-3. **Build method:** choose **Git repository**.
-4. **Repository URL:** your repo (e.g. `https://github.com/YOUR_USER/Formel1Dash`).
-5. **Repository reference:** leave empty or set a branch (e.g. `main`).
-6. **Compose path:** `docker-compose.yml`.
-7. **(Optional)** If the app is reached by another host (not localhost), add an **Environment variable**: `NEXT_PUBLIC_API_URL` = `http://YOUR_SERVER_IP_OR_HOST:3001/api`.
-8. Click **Deploy the stack**.
-
-Use a **Standalone** environment (not Swarm) so that `build` is supported. If you see *"Ignoring unsupported options: build"* or *"no image specified"*, use Option B.
-
-### Option B: Pre-built images (Swarm or when build is disabled)
-
-Portainer on Swarm (or with build disabled) cannot build from the repo. Build the images once on a machine with Docker, push to a registry, then deploy in Portainer using pre-built images.
-
-**1. Build and push** (from project root, replace `YOUR_USER` with your Docker Hub username or use another registry):
+**Build and push for Portainer (when build is disabled):**
 
 ```bash
 docker-compose build
@@ -155,38 +152,32 @@ docker push YOUR_USER/formel1dash-backend:latest
 docker push YOUR_USER/formel1dash-frontend:latest
 ```
 
-For the frontend, if the app will be used at a different URL (e.g. `http://your-server:3000`), build with the API URL so the browser can reach the backend:
+If the app is used from another host, rebuild the frontend with the correct API URL:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:3001/api docker-compose build frontend
-docker tag formel1dash-frontend:latest YOUR_USER/formel1dash-frontend:latest
-docker push YOUR_USER/formel1dash-frontend:latest
+NEXT_PUBLIC_API_URL=http://YOUR_SERVER:3001/api docker-compose build frontend
+# then tag and push formel1dash-frontend:latest as above
 ```
 
-**2. In Portainer:** **Stacks** → **Add stack** → **Web editor**. Paste the contents of `docker-compose.portainer.yml` from the repo, then add an environment variable:
+In Portainer, use **Web editor** with `docker-compose.portainer.yml` and set `REGISTRY` to your Docker Hub username (or e.g. `ghcr.io/YOUR_USER`).
 
-- Name: `REGISTRY`  
-- Value: `YOUR_USER` (Docker Hub) or e.g. `ghcr.io/YOUR_USER` (GitHub Container Registry)
-
-Deploy the stack. Portainer will pull the images and start the services. Frontend: port **3000**, backend: **3001**. Data is stored in stack volumes.
+---
 
 ## Project structure
 
 ```
-/backend
-  server.js           # Express app
-  database.js         # SQLite init & connection
-  routes/             # tracks, laps
-  controllers/        # CRUD logic
-  scripts/initDb.js   # DB migration/setup
+backend/
+  server.js, database.js    # App & SQLite
+  routes/, controllers/     # API
+  scripts/initDb.js         # DB init
 
-/frontend
-  app/
-    page.tsx          # Home (links to dashboard & admin)
-    dashboard/        # Live timing board
-    admin/            # Tracks & lap management
-  lib/api.ts          # API client
+frontend/
+  app/                      # Next.js App Router (dashboard, admin)
+  lib/api.ts                # API client
+  components/               # CountryFlag, TrackOutline, etc.
 ```
+
+---
 
 ## License
 
