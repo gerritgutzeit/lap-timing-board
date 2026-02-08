@@ -258,7 +258,7 @@ export default function DashboardPage() {
       ) : null}
 
       <div
-        className={`relative z-10 ${showContentRecovered ? 'animate-content-in' : ''} ${isSingleTrackFullscreen ? 'px-6 md:px-10 pb-24 min-h-[60vh] flex flex-col' : 'px-6 md:px-12 lg:px-16 pb-24 max-w-7xl mx-auto space-y-12'}`}
+        className={`relative z-10 ${showContentRecovered ? 'animate-content-in' : ''} ${isSingleTrackFullscreen ? 'px-6 md:px-10 pb-24 min-h-[60vh] flex flex-col' : 'px-6 md:px-12 lg:px-16 pb-24 flex flex-col min-h-[calc(100vh-7rem)] justify-center'}`}
       >
         {!showFullscreenStatus && isSingleTrackFullscreen && singleTrack ? (
           /* Single track fullscreen content */
@@ -310,8 +310,8 @@ export default function DashboardPage() {
             )}
           </div>
         ) : !showFullscreenStatus ? (
-          /* Multi-track grid */
-          <>
+          /* Multi-track grid – centered in viewport */
+          <div className="max-w-7xl mx-auto w-full space-y-12">
             <div
               className="grid gap-8 md:gap-10 lg:gap-12"
               style={{
@@ -383,7 +383,7 @@ export default function DashboardPage() {
                 Configure dashboard tracks in Admin → Dashboard track selection
               </div>
             )}
-          </>
+          </div>
         ) : null}
       </div>
 

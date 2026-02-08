@@ -124,6 +124,50 @@ NEXT_PUBLIC_API_URL=http://192.168.1.100:3001/api
 
 Then run `docker-compose up --build -d` so the frontend is rebuilt with that URL. Replace the host/port with your server’s address (and use `https://` if you put a reverse proxy in front).
 
+## Deploy on Portainer
+
+### Option A: Stack from Git (when build is supported)
+
+1. In Portainer: **Stacks** → **Add stack**.
+2. **Name:** e.g. `formel1dash`.
+3. **Build method:** choose **Git repository**.
+4. **Repository URL:** your repo (e.g. `https://github.com/YOUR_USER/Formel1Dash`).
+5. **Repository reference:** leave empty or set a branch (e.g. `main`).
+6. **Compose path:** `docker-compose.yml`.
+7. **(Optional)** If the app is reached by another host (not localhost), add an **Environment variable**: `NEXT_PUBLIC_API_URL` = `http://YOUR_SERVER_IP_OR_HOST:3001/api`.
+8. Click **Deploy the stack**.
+
+Use a **Standalone** environment (not Swarm) so that `build` is supported. If you see *"Ignoring unsupported options: build"* or *"no image specified"*, use Option B.
+
+### Option B: Pre-built images (Swarm or when build is disabled)
+
+Portainer on Swarm (or with build disabled) cannot build from the repo. Build the images once on a machine with Docker, push to a registry, then deploy in Portainer using pre-built images.
+
+**1. Build and push** (from project root, replace `YOUR_USER` with your Docker Hub username or use another registry):
+
+```bash
+docker-compose build
+docker tag formel1dash-backend:latest YOUR_USER/formel1dash-backend:latest
+docker tag formel1dash-frontend:latest YOUR_USER/formel1dash-frontend:latest
+docker push YOUR_USER/formel1dash-backend:latest
+docker push YOUR_USER/formel1dash-frontend:latest
+```
+
+For the frontend, if the app will be used at a different URL (e.g. `http://your-server:3000`), build with the API URL so the browser can reach the backend:
+
+```bash
+NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:3001/api docker-compose build frontend
+docker tag formel1dash-frontend:latest YOUR_USER/formel1dash-frontend:latest
+docker push YOUR_USER/formel1dash-frontend:latest
+```
+
+**2. In Portainer:** **Stacks** → **Add stack** → **Web editor**. Paste the contents of `docker-compose.portainer.yml` from the repo, then add an environment variable:
+
+- Name: `REGISTRY`  
+- Value: `YOUR_USER` (Docker Hub) or e.g. `ghcr.io/YOUR_USER` (GitHub Container Registry)
+
+Deploy the stack. Portainer will pull the images and start the services. Frontend: port **3000**, backend: **3001**. Data is stored in stack volumes.
+
 ## Project structure
 
 ```

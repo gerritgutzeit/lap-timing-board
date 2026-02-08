@@ -1,0 +1,28 @@
+# Use this in Portainer when "build" is not supported (e.g. Swarm or build disabled).
+# Build and push images first (see README "Portainer – no build" section), then
+# set REGISTRY (e.g. your Docker Hub user). Change frontend/backend ports if they clash with other stacks.
+services:
+  backend:
+    image: gerritgutzeit/formel1dash-backend:latest
+    ports:
+      - "3001:3001"
+    volumes:
+      - f1-data:/app/data
+      - f1-uploads:/app/uploads
+    environment:
+      - PORT=3001
+      - DB_PATH=/app/data/f1timing.db
+      - UPLOADS_DIR=/app/uploads
+
+  frontend:
+    image: gerritgutzeit/formel1dash-frontend:latest
+    ports:
+      - "3080:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - backend
+
+volumes:
+  f1-data:
+  f1-uploads:

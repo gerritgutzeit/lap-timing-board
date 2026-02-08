@@ -1,5 +1,6 @@
 services:
   backend:
+    image: formel1dash-backend:latest
     build: ./backend
     ports:
       - "3001:3001"
@@ -13,6 +14,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: formel1dash-frontend:latest
     build:
       context: ./frontend
       args:
