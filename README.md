@@ -1,5 +1,7 @@
 # F1 Timing Dashboard
 
+![Dashboard screenshot](image1.jpg)
+
 A professional Formula 1 timing board dashboard with a live display and admin backend to manage tracks and lap times.
 
 ## Tech Stack
