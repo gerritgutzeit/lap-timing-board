@@ -7,6 +7,10 @@ const DASHBOARD_TITLE_KEY = 'dashboard_title';
 const DEFAULT_TITLE = 'F1 TIMING';
 const DASHBOARD_UP_KEY = 'dashboard_up';
 const DISABLED_DRIVER_NAMES_KEY = 'disabled_driver_names';
+const CAROUSEL_INTERVAL_MS_KEY = 'carousel_interval_ms';
+const DEFAULT_CAROUSEL_INTERVAL_MS = 10000;
+const MIN_CAROUSEL_INTERVAL_MS = 3000;
+const MAX_CAROUSEL_INTERVAL_MS = 120000;
 
 const TRACK_OUTLINE_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 const TRACK_OUTLINE_PREFIX = 'track-outline-';
@@ -190,4 +194,34 @@ function getTrackOutlineTrackIds(req, res) {
   }
 }
 
-module.exports = { getDashboardTracks, setDashboardTracks, getDashboardTitle, setDashboardTitle, getDashboardUp, setDashboardUp, getDisabledDrivers, setDisabledDrivers, getTrackOutlineImage, setTrackOutlineImage, hasTrackOutline, getTrackOutlineTrackIds };
+function getCarouselInterval(req, res) {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT value FROM config WHERE key = ?').get(CAROUSEL_INTERVAL_MS_KEY);
+    const ms = row && row.value ? parseInt(row.value, 10) : DEFAULT_CAROUSEL_INTERVAL_MS;
+    const intervalMs = Number.isNaN(ms) || ms < MIN_CAROUSEL_INTERVAL_MS || ms > MAX_CAROUSEL_INTERVAL_MS
+      ? DEFAULT_CAROUSEL_INTERVAL_MS
+      : ms;
+    res.json({ intervalMs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function setCarouselInterval(req, res) {
+  try {
+    const db = getDb();
+    let { intervalMs } = req.body;
+    intervalMs = parseInt(intervalMs, 10);
+    if (Number.isNaN(intervalMs)) {
+      return res.status(400).json({ error: 'intervalMs must be a number' });
+    }
+    const clamped = Math.max(MIN_CAROUSEL_INTERVAL_MS, Math.min(MAX_CAROUSEL_INTERVAL_MS, intervalMs));
+    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(CAROUSEL_INTERVAL_MS_KEY, String(clamped));
+    res.json({ intervalMs: clamped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getDashboardTracks, setDashboardTracks, getDashboardTitle, setDashboardTitle, getDashboardUp, setDashboardUp, getDisabledDrivers, setDisabledDrivers, getTrackOutlineImage, setTrackOutlineImage, hasTrackOutline, getTrackOutlineTrackIds, getCarouselInterval, setCarouselInterval };

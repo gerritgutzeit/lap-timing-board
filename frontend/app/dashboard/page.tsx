@@ -191,6 +191,14 @@ export default function DashboardPage() {
         >
           {isSingleTrackFullscreen && singleTrack ? singleTrack.name : dashboardTitle}
         </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/carousel" className="text-sm text-techie-dim hover:text-techie-text transition-colors">
+            Carousel
+          </Link>
+          <Link href="/drivers" className="text-sm text-techie-dim hover:text-techie-text transition-colors">
+            Drivers
+          </Link>
+        </div>
       </header>
 
       {/* Fullscreen status when backend is unreachable or dashboard is set to down */}

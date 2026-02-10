@@ -165,6 +165,25 @@ export async function setDashboardUp(up: boolean): Promise<boolean> {
   return data.up === true;
 }
 
+export async function fetchCarouselInterval(): Promise<number> {
+  const res = await fetch(`${getApiBase()}/config/carousel-interval`);
+  if (res.status === 404 || !res.ok) return 10000;
+  const data = await res.json();
+  const ms = typeof data.intervalMs === 'number' ? data.intervalMs : 10000;
+  return Math.max(3000, Math.min(120000, ms));
+}
+
+export async function setCarouselInterval(intervalMs: number): Promise<number> {
+  const res = await fetch(`${getApiBase()}/config/carousel-interval`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ intervalMs }),
+  });
+  if (!res.ok) throw new Error('Failed to save carousel interval');
+  const data = await res.json();
+  return typeof data.intervalMs === 'number' ? data.intervalMs : intervalMs;
+}
+
 export async function fetchDisabledDrivers(): Promise<string[]> {
   const res = await fetch(`${getApiBase()}/config/disabled-drivers`);
   if (res.status === 404) return [];

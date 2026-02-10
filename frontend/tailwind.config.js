@@ -37,6 +37,13 @@ module.exports = {
         'status-in': 'statusIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'content-in': 'contentIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'waiting-pulse': 'waitingPulse 1.8s ease-in-out infinite',
+        'carousel-in': 'carouselIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-in-fast': 'carouselIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-card': 'carouselCard 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-driver': 'carouselDriver 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-row': 'carouselRow 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-outline': 'carouselOutline 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'carousel-dot': 'carouselDot 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
         fadeIn: {
@@ -70,6 +77,31 @@ module.exports = {
         waitingPulse: {
           '0%, 100%': { opacity: '0.5' },
           '50%': { opacity: '1' },
+        },
+        carouselIn: {
+          '0%': { opacity: '0', transform: 'translateX(32px) scale(0.98)' },
+          '60%': { opacity: '1', transform: 'translateX(-2px) scale(1.005)' },
+          '100%': { opacity: '1', transform: 'translateX(0) scale(1)' },
+        },
+        carouselCard: {
+          '0%': { opacity: '0', transform: 'translateY(24px) scale(0.96)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' },
+        },
+        carouselDriver: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        carouselRow: {
+          '0%': { opacity: '0', transform: 'translateX(-12px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        carouselOutline: {
+          '0%': { opacity: '0', transform: 'scale(0.94)' },
+          '100%': { opacity: '0.55', transform: 'scale(1)' },
+        },
+        carouselDot: {
+          '0%': { transform: 'scaleX(0.25)', opacity: '0.5' },
+          '100%': { transform: 'scaleX(1)', opacity: '1' },
         },
       },
     },

@@ -11,6 +11,8 @@ import {
   setDashboardTitle,
   fetchDashboardUp,
   setDashboardUp,
+  fetchCarouselInterval,
+  setCarouselInterval,
   getTrackOutlineTrackIds,
   uploadTrackOutline,
   createTrack,
@@ -45,6 +47,7 @@ export default function AdminPage() {
   const [dashboardTrackIds, setDashboardTrackIds] = useState<string[]>(['']);
   const [dashboardTitle, setDashboardTitleState] = useState<string>('F1 TIMING');
   const [dashboardUp, setDashboardUpState] = useState(true);
+  const [carouselIntervalSec, setCarouselIntervalSec] = useState<number>(10);
   const [trackOutlineTrackIds, setTrackOutlineTrackIds] = useState<number[]>([]);
   const [trackOutlineUploadingId, setTrackOutlineUploadingId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
@@ -76,6 +79,8 @@ export default function AdminPage() {
       setDashboardTitleState(title || 'F1 TIMING');
       const up = await fetchDashboardUp().catch(() => true);
       setDashboardUpState(up);
+      const intervalMs = await fetchCarouselInterval().catch(() => 10000);
+      setCarouselIntervalSec(Math.round(intervalMs / 1000));
       const outlineIds = await getTrackOutlineTrackIds().catch(() => []);
       setTrackOutlineTrackIds(outlineIds);
     } catch (e) {
@@ -250,6 +255,18 @@ export default function AdminPage() {
     }
   };
 
+  const handleSaveCarouselInterval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const sec = Math.max(3, Math.min(120, Math.round(Number(carouselIntervalSec) || 10)));
+    try {
+      await setCarouselInterval(sec * 1000);
+      setCarouselIntervalSec(sec);
+      showSuccess(`Carousel interval set to ${sec} seconds`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save carousel interval');
+    }
+  };
+
   const handleTrackOutlineUpload = async (trackId: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -416,6 +433,32 @@ export default function AdminPage() {
               Set DOWN
             </button>
           </div>
+        </section>
+
+        <section className="bg-f1-panel border border-f1-border rounded-xl p-6">
+          <h2 className="font-display text-lg font-semibold text-white mb-4">
+            CAROUSEL INTERVAL
+          </h2>
+          <p className="text-f1-muted text-sm mb-4">
+            How long each slide (fullscreen track, 4 cards, driver view) is shown on the Carousel page. Min 3 s, max 120 s. Save to apply.
+          </p>
+          <form onSubmit={handleSaveCarouselInterval} className="flex flex-wrap items-center gap-3">
+            <input
+              type="number"
+              min={3}
+              max={120}
+              value={carouselIntervalSec}
+              onChange={(e) => setCarouselIntervalSec(Number(e.target.value) || 10)}
+              className="bg-f1-dark border border-f1-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-f1-red w-24"
+            />
+            <span className="text-f1-muted text-sm">seconds per slide</span>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-f1-red text-white font-medium rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Save interval
+            </button>
+          </form>
         </section>
 
         <section className="bg-f1-panel border border-f1-border rounded-xl p-6">

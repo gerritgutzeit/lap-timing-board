@@ -14,5 +14,7 @@ router.get('/track-outline/track-ids', configController.getTrackOutlineTrackIds)
 router.get('/track-outline/:trackId', configController.getTrackOutlineImage);
 router.put('/track-outline/:trackId', configController.setTrackOutlineImage);
 router.get('/track-outline/:trackId/exists', configController.hasTrackOutline);
+router.get('/carousel-interval', configController.getCarouselInterval);
+router.put('/carousel-interval', configController.setCarouselInterval);
 
 module.exports = router;
