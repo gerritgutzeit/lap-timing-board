@@ -56,6 +56,76 @@ body {
   100% { background-color: transparent; }
 }
 
+/* Telemetry live view – centered overlay, no background animation */
+.telemetry-view {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.telemetry-time-block {
+  display: inline-block;
+  width: 9ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+.telemetry-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 3.5rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 25px 50px -12px rgba(0,0,0,0.5);
+  text-align: center;
+}
+.telemetry-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(225,6,0,0.15), transparent 40%, transparent 60%, rgba(225,6,0,0.08));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* New record celebration overlay – single animation, no overflow */
+.record-celebration-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: radial-gradient(ellipse 120% 80% at 50% 50%, rgba(34, 197, 94, 0.15) 0%, rgba(251, 191, 36, 0.06) 45%, transparent 70%);
+}
+.record-celebration-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), rgba(251, 191, 36, 0.2), rgba(34, 197, 94, 0.25));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

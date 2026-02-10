@@ -4,6 +4,7 @@ const lapsController = require('../controllers/lapsController');
 
 router.get('/', lapsController.getAllLaps);
 router.get('/track/:trackId', lapsController.getFastestLapsByTrack);
+router.get('/fastest-by-track-name', lapsController.getFastestLapByTrackName);
 router.delete('/by-driver', lapsController.deleteLapsByDriver);
 router.post('/', lapsController.createLap);
 router.patch('/:id', lapsController.updateLap);

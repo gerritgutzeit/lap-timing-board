@@ -2,8 +2,20 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { fetchTracks, fetchFastestLaps, fetchDashboardTracks, fetchDashboardTitle, fetchDashboardUp, getTrackOutlineImageUrl, getTrackOutlineTrackIds, hasTrackOutline, type Track, type Lap } from '@/lib/api';
+import { fetchTracks, fetchFastestLaps, fetchDashboardTracks, fetchDashboardTitle, fetchDashboardUp, fetchTelemetryLive, fetchFastestLapByTrackName, type Track, type Lap, type TelemetryLiveState, type FastestLapByTrackName } from '@/lib/api';
+import { getTrackOutlineImageUrl, getTrackOutlineTrackIds, hasTrackOutline } from '@/lib/api';
 import CountryFlag from '@/components/CountryFlag';
+
+/** Format lap time from milliseconds to fixed-width MM:SS.hh (e.g. 01:32.84) so digits don't jump. */
+function formatLapTimeFromMs(ms: number): string {
+  if (ms == null || Number.isNaN(ms) || ms < 0) return '——:——.—';
+  const totalSeconds = ms / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const hundredths = Math.floor((seconds % 1) * 100);
+  const secs = Math.floor(seconds);
+  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+}
 
 const REFRESH_MS = 5000;
 
@@ -18,6 +30,20 @@ function lapTimeToSeconds(lapTime: string): number {
 /** Format delta in seconds as +X.XXXs (or empty for 0). */
 function formatDelta(seconds: number): string {
   if (seconds <= 0) return '';
+  return `+${seconds.toFixed(3)}s`;
+}
+
+/** Delta of last lap vs record: negative = faster (green), positive = slower (red). Returns null if can't compute. */
+function lastLapDeltaVsRecord(lastLapMs: number | null | undefined, recordLapTime: string | undefined): number | null {
+  if (lastLapMs == null || lastLapMs <= 0 || !recordLapTime?.trim()) return null;
+  const recordSeconds = lapTimeToSeconds(recordLapTime);
+  if (recordSeconds <= 0) return null;
+  return lastLapMs / 1000 - recordSeconds;
+}
+
+function formatDeltaSigned(seconds: number): string {
+  if (seconds === 0) return '0.000s';
+  if (seconds < 0) return `${seconds.toFixed(3)}s`;
   return `+${seconds.toFixed(3)}s`;
 }
 
@@ -49,10 +75,67 @@ export default function DashboardPage() {
   const [trackIdsWithOutline, setTrackIdsWithOutline] = useState<number[]>([]);
   const [showContentRecovered, setShowContentRecovered] = useState(false);
   const prevShowFullscreenStatusRef = useRef<boolean>(false);
+  const [telemetry, setTelemetry] = useState<TelemetryLiveState | null>(null);
+  const [fastestDbLap, setFastestDbLap] = useState<FastestLapByTrackName | null>(null);
+  const prevLastLapTimeMsRef = useRef<number | null>(null);
+  const [lastLapFullscreen, setLastLapFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
+  const [newRecordFullscreen, setNewRecordFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
 
   useEffect(() => {
     lapsByTrackRef.current = lapsByTrack;
   }, [lapsByTrack]);
+
+  // When last lap time updates: fullscreen "new record" (10s) if faster than record, else "last lap + delta" (4s)
+  useEffect(() => {
+    const ms = telemetry?.lastLapTimeMs;
+    if (ms == null || ms <= 0) return;
+    if (prevLastLapTimeMsRef.current === ms) return;
+    prevLastLapTimeMsRef.current = ms;
+    const delta = lastLapDeltaVsRecord(ms, fastestDbLap?.fastest?.lapTime);
+    if (delta != null && delta < 0) {
+      setNewRecordFullscreen({ lastLapTimeMs: ms });
+      setLastLapFullscreen(null);
+      const t = setTimeout(() => setNewRecordFullscreen(null), 10000);
+      return () => clearTimeout(t);
+    }
+    setLastLapFullscreen({ lastLapTimeMs: ms });
+    setNewRecordFullscreen(null);
+    const t = setTimeout(() => setLastLapFullscreen(null), 4000);
+    return () => clearTimeout(t);
+  }, [telemetry?.lastLapTimeMs, fastestDbLap?.fastest?.lapTime]);
+
+  // When live view shows a track, fetch fastest lap from DB for comparison
+  useEffect(() => {
+    if (!telemetry?.trackName?.trim()) {
+      setFastestDbLap(null);
+      return;
+    }
+    let cancelled = false;
+    fetchFastestLapByTrackName(telemetry.trackName)
+      .then((data) => { if (!cancelled) setFastestDbLap(data ?? null); })
+      .catch(() => { if (!cancelled) setFastestDbLap(null); });
+    return () => { cancelled = true; };
+  }, [telemetry?.trackName]);
+
+  // Poll F1 25 UDP telemetry when on dashboard; treat as "hot" only if recent data
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled) return;
+      try {
+        const state = await fetchTelemetryLive();
+        if (!cancelled) setTelemetry(state);
+      } catch {
+        if (!cancelled) setTelemetry(null);
+      }
+    };
+    poll();
+    const interval = setInterval(poll, 150);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const loadTracks = async () => {
     try {
@@ -169,6 +252,7 @@ export default function DashboardPage() {
 
   const backendUnreachable = !!error;
   const showFullscreenStatus = backendUnreachable || !dashboardUp;
+  const showLiveLapView = !!telemetry?.isHot && telemetry?.currentLapTimeMs != null;
 
   useEffect(() => {
     const wasFullscreen = prevShowFullscreenStatusRef.current;
@@ -182,14 +266,14 @@ export default function DashboardPage() {
 
   return (
     <main
-      className={`min-h-screen text-techie-text font-mono text-sm antialiased transition-colors duration-500 ${showFullscreenStatus ? 'bg-techie-bg' : !isSingleTrackFullscreen ? 'bg-techie-bg dashboard-grid' : ''}`}
+      className={`min-h-screen text-techie-text font-mono text-sm antialiased transition-colors duration-500 ${showLiveLapView ? 'bg-techie-bg' : showFullscreenStatus ? 'bg-techie-bg' : !isSingleTrackFullscreen ? 'bg-techie-bg dashboard-grid' : ''}`}
     >
-      <header className={`flex items-center justify-between px-6 md:px-10 py-6 relative z-10 transition-opacity duration-500 ${showFullscreenStatus ? 'opacity-80' : ''}`}>
+      <header className={`flex items-center justify-between px-6 md:px-10 py-6 relative z-10 transition-opacity duration-500 ${showFullscreenStatus && !showLiveLapView ? 'opacity-80' : ''}`}>
         <Link
           href="/"
           className="font-display font-semibold text-techie-text hover:text-techie-accent transition-colors tracking-[0.25em] text-2xl md:text-3xl lg:text-4xl uppercase"
         >
-          {isSingleTrackFullscreen && singleTrack ? singleTrack.name : dashboardTitle}
+          {showLiveLapView ? 'LIVE LAP' : isSingleTrackFullscreen && singleTrack ? singleTrack.name : dashboardTitle}
         </Link>
         <div className="flex items-center gap-4">
           <Link href="/carousel" className="text-sm text-techie-dim hover:text-techie-text transition-colors">
@@ -201,8 +285,91 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Fullscreen status when backend is unreachable or dashboard is set to down */}
-      {showFullscreenStatus && (
+      {/* Fullscreen: new record – time only, solid background, 10s */}
+      {showLiveLapView && newRecordFullscreen && (
+        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-techie-bg px-6 animate-last-lap-fullscreen-in" aria-live="polite" role="status">
+          <p className="font-display font-black text-2xl sm:text-3xl uppercase tracking-[0.2em] text-green-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.4)] mb-6">
+            New record
+          </p>
+          <p className="font-mono font-bold text-techie-text text-7xl sm:text-8xl md:text-9xl tracking-tight tabular-nums text-center">
+            {formatLapTimeFromMs(newRecordFullscreen.lastLapTimeMs)}
+          </p>
+        </div>
+      )}
+
+      {/* Fullscreen: new lap time + delta (if slower) only, centered – hides live view underneath */}
+      {showLiveLapView && lastLapFullscreen && (
+        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-techie-bg px-6 animate-last-lap-fullscreen-in" aria-live="polite" role="status">
+          <p className="font-mono font-bold text-techie-text text-7xl sm:text-8xl md:text-9xl tracking-tight tabular-nums text-center">
+            {formatLapTimeFromMs(lastLapFullscreen.lastLapTimeMs)}
+          </p>
+          <div className="mt-6 min-h-[3.5rem] flex items-center justify-center">
+            {(() => {
+              const delta = lastLapDeltaVsRecord(lastLapFullscreen.lastLapTimeMs, fastestDbLap?.fastest?.lapTime);
+              if (delta == null || delta <= 0) return null;
+              return (
+                <p className="text-red-400 font-mono text-2xl sm:text-3xl tabular-nums">
+                  {formatDeltaSigned(delta)}
+                </p>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Live F1 25 lap time when UDP telemetry is hot – hidden while any fullscreen overlay is showing */}
+      {showLiveLapView && !lastLapFullscreen && !newRecordFullscreen && (() => {
+        const lastLapDelta = lastLapDeltaVsRecord(telemetry?.lastLapTimeMs, fastestDbLap?.fastest?.lapTime);
+        return (
+        <div className="telemetry-view px-6 bg-techie-bg">
+          <div className="relative z-10 w-full max-w-xl flex flex-col items-center justify-center opacity-0 animate-telemetry-in">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-f1-red/40 bg-f1-red/10 mb-4 animate-telemetry-live-pulse">
+              <span className="w-2 h-2 rounded-full bg-f1-red animate-pulse shadow-[0_0_8px_rgba(225,6,0,0.8)]" />
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-f1-red">Live</span>
+            </div>
+            {telemetry?.trackName && (
+              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-4 text-techie-dim">
+                <span className="text-xl sm:text-2xl font-semibold uppercase tracking-wider text-techie-text">{telemetry.trackName}</span>
+              </div>
+            )}
+            <div className="telemetry-card w-full">
+              <p className="text-techie-dim text-xs uppercase tracking-[0.25em] mb-5">Current lap</p>
+              <div className="w-full flex justify-center">
+                <p
+                  className="telemetry-time-block font-mono font-bold text-techie-text text-6xl sm:text-7xl md:text-8xl tracking-tight animate-telemetry-time-in animate-telemetry-glow"
+                  aria-live="polite"
+                >
+                  {formatLapTimeFromMs(telemetry!.currentLapTimeMs!)}
+                </p>
+              </div>
+            </div>
+            <p className="text-techie-dim text-sm mt-5 font-mono tabular-nums opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
+              Last lap <span className="inline-block w-[8ch] text-center">{telemetry?.lastLapTimeMs != null && telemetry.lastLapTimeMs > 0 ? formatLapTimeFromMs(telemetry.lastLapTimeMs) : '—:—.—'}</span>
+              {lastLapDelta != null && (
+                <span
+                  className={`ml-2 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded ${lastLapDelta < 0 ? 'text-green-400 bg-green-500/15' : 'text-red-400 bg-red-500/15'}`}
+                  title={lastLapDelta < 0 ? 'Faster than record' : 'Slower than record'}
+                >
+                  {formatDeltaSigned(lastLapDelta)}
+                </span>
+              )}
+            </p>
+            <p className="text-techie-dim text-sm mt-2 font-mono tabular-nums opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
+              Record <span className="inline-block w-[8ch] text-center text-techie-accent">{fastestDbLap?.fastest ? fastestDbLap.fastest.lapTime : '—:—.—'}</span>
+              {fastestDbLap?.fastest?.driverName && <span className="ml-2 text-techie-dim">({fastestDbLap.fastest.driverName})</span>}
+            </p>
+            {telemetry?.driverName && (
+              <p className="text-techie-dim text-sm mt-auto pt-6 opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
+                Current Driver: <span className="font-medium text-techie-accent">{telemetry.driverName}</span>
+              </p>
+            )}
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* Fullscreen status when backend is unreachable or dashboard is set to down (not when live lap is showing) */}
+      {!showLiveLapView && showFullscreenStatus && (
         <div
           className="fixed inset-0 z-20 flex flex-col items-center justify-center px-6 py-12 animate-status-in"
           aria-live="polite"
@@ -233,7 +400,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {error && !backendUnreachable && (
+      {error && !backendUnreachable && !showLiveLapView && (
         <div className="relative z-10 px-6 md:px-10">
           <div className="bg-red-950/30 px-5 py-3 rounded-sm text-red-400 text-xs max-w-6xl mx-auto">
             {error}
@@ -241,7 +408,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {!showFullscreenStatus && isSingleTrackFullscreen ? (
+      {!showLiveLapView && !showFullscreenStatus && isSingleTrackFullscreen ? (
         /* Fullscreen single-track view – track outline as background when uploaded */
         <div
           className="fixed inset-0 top-0 left-0 right-0 bottom-0 pointer-events-none"
@@ -265,6 +432,7 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+{!showLiveLapView && (
       <div
         className={`relative z-10 ${showContentRecovered ? 'animate-content-in' : ''} ${isSingleTrackFullscreen ? 'px-6 md:px-10 pb-24 min-h-[60vh] flex flex-col' : 'px-6 md:px-12 lg:px-16 pb-24 flex flex-col min-h-[calc(100vh-7rem)] justify-center'}`}
       >
@@ -398,10 +566,11 @@ export default function DashboardPage() {
             )}
           </div>
         ) : null}
-      </div>
+        </div>
+      )}
 
-      {/* Small system overview – bottom corner, hidden when fullscreen error */}
-      {!showFullscreenStatus && (
+      {/* Small system overview – bottom corner, hidden when fullscreen error or when live lap is showing */}
+      {!showFullscreenStatus && !showLiveLapView && (
         <div className="fixed bottom-4 right-4 bg-techie-surface/90 rounded-sm px-3 py-2 space-y-1 z-10">
           <div className="flex items-baseline gap-2 text-xs">
             <span className="text-techie-dim">TIME</span>

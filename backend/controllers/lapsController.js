@@ -167,4 +167,47 @@ function deleteLapsByDriver(req, res) {
   }
 }
 
-module.exports = { getAllLaps, getFastestLapsByTrack, createLap, updateLap, deleteLap, deleteLapsByDriver };
+/** Get fastest lap for a track matched by name (case-insensitive). For telemetry comparison. */
+function getFastestLapByTrackName(req, res) {
+  try {
+    let name = req.query.name;
+    if (Array.isArray(name)) name = name[0];
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name query is required' });
+    }
+    name = name.trim();
+    const db = getDb();
+    const track = db.prepare('SELECT id, name FROM tracks WHERE LOWER(TRIM(name)) = LOWER(?)').get(name);
+    if (!track) {
+      return res.status(404).json({ error: 'Track not found', fastest: null });
+    }
+    let laps = db.prepare(`
+      SELECT l.id, l.driver_name, l.lap_time, l.track_id
+      FROM laps l
+      WHERE l.track_id = ?
+      ORDER BY l.lap_time ASC
+    `).all(track.id);
+    const disabled = getDisabledDriverNames(db);
+    if (disabled.length > 0) {
+      const set = new Set(disabled);
+      laps = laps.filter((lap) => !set.has(lap.driver_name));
+    }
+    const fastest = laps.length > 0 ? laps[0] : null;
+    if (!fastest) {
+      return res.json({ trackId: track.id, trackName: track.name, fastest: null });
+    }
+    res.json({
+      trackId: track.id,
+      trackName: track.name,
+      fastest: {
+        lapTime: fastest.lap_time,
+        driverName: fastest.driver_name,
+        lapId: fastest.id,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = { getAllLaps, getFastestLapsByTrack, getFastestLapByTrackName, createLap, updateLap, deleteLap, deleteLapsByDriver };

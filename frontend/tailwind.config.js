@@ -44,6 +44,13 @@ module.exports = {
         'carousel-row': 'carouselRow 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-outline': 'carouselOutline 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-dot': 'carouselDot 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'telemetry-in': 'telemetryIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'telemetry-time-in': 'telemetryTimeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both',
+        'telemetry-glow': 'telemetryGlow 2.5s ease-in-out infinite',
+        'telemetry-live-pulse': 'telemetryLivePulse 1.5s ease-in-out infinite',
+        'record-celebration': 'recordCelebration 10s ease-out forwards',
+        'record-celebration-text': 'recordCelebrationText 10s ease-out forwards',
+        'last-lap-fullscreen-in': 'fadeIn 0.4s ease-out forwards',
       },
       keyframes: {
         fadeIn: {
@@ -102,6 +109,39 @@ module.exports = {
         carouselDot: {
           '0%': { transform: 'scaleX(0.25)', opacity: '0.5' },
           '100%': { transform: 'scaleX(1)', opacity: '1' },
+        },
+        telemetryIn: {
+          '0%': { opacity: '0', transform: 'scale(0.92)', filter: 'blur(8px)' },
+          '100%': { opacity: '1', transform: 'scale(1)', filter: 'blur(0)' },
+        },
+        telemetryTimeIn: {
+          '0%': { opacity: '0', transform: 'scale(0.6) translateY(20px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        telemetryGlow: {
+          '0%, 100%': { textShadow: '0 0 20px rgba(192,192,192,0.15), 0 0 40px rgba(225,6,0,0.08)' },
+          '50%': { textShadow: '0 0 32px rgba(192,192,192,0.35), 0 0 60px rgba(225,6,0,0.12)' },
+        },
+        telemetryLivePulse: {
+          '0%, 100%': { opacity: '1', boxShadow: '0 0 0 0 rgba(225, 6, 0, 0.4)' },
+          '50%': { opacity: '0.9', boxShadow: '0 0 0 8px rgba(225, 6, 0, 0)' },
+        },
+        recordCelebration: {
+          '0%': { opacity: '0' },
+          '2%': { opacity: '1' },
+          '92%': { opacity: '1' },
+          '100%': { opacity: '0.97' },
+        },
+        recordCelebrationText: {
+          '0%': { opacity: '0', transform: 'scale(0.5) translateY(12px)' },
+          '8%': { opacity: '1', transform: 'scale(1.08) translateY(0)' },
+          '15%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+          '25%': { opacity: '1', transform: 'scale(1.02) translateY(0)' },
+          '35%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+          '50%': { opacity: '1', transform: 'scale(1.02) translateY(0)' },
+          '65%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+          '80%': { opacity: '1', transform: 'scale(1.02) translateY(0)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
         },
       },
     },

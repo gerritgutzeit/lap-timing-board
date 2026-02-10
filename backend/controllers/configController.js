@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const { getDb } = require('../database');
+const telemetryService = require('../udp/telemetryService');
 
 const DASHBOARD_TRACK_IDS_KEY = 'dashboard_track_ids';
 const DASHBOARD_TITLE_KEY = 'dashboard_title';
@@ -11,6 +12,14 @@ const CAROUSEL_INTERVAL_MS_KEY = 'carousel_interval_ms';
 const DEFAULT_CAROUSEL_INTERVAL_MS = 10000;
 const MIN_CAROUSEL_INTERVAL_MS = 3000;
 const MAX_CAROUSEL_INTERVAL_MS = 120000;
+
+const UDP_TELEMETRY_BIND_ADDRESS_KEY = 'udp_telemetry_bind_address';
+const UDP_TELEMETRY_PORT_KEY = 'udp_telemetry_port';
+const UDP_TELEMETRY_DRIVER_ALIAS_KEY = 'udp_telemetry_driver_alias';
+const DEFAULT_UDP_BIND_ADDRESS = '0.0.0.0';
+const DEFAULT_UDP_PORT = 20777;
+const MIN_UDP_PORT = 1024;
+const MAX_UDP_PORT = 65535;
 
 const TRACK_OUTLINE_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 const TRACK_OUTLINE_PREFIX = 'track-outline-';
@@ -224,4 +233,90 @@ function setCarouselInterval(req, res) {
   }
 }
 
-module.exports = { getDashboardTracks, setDashboardTracks, getDashboardTitle, setDashboardTitle, getDashboardUp, setDashboardUp, getDisabledDrivers, setDisabledDrivers, getTrackOutlineImage, setTrackOutlineImage, hasTrackOutline, getTrackOutlineTrackIds, getCarouselInterval, setCarouselInterval };
+function getUdpTelemetryConfig(req, res) {
+  try {
+    const db = getDb();
+    const addrRow = db.prepare('SELECT value FROM config WHERE key = ?').get(UDP_TELEMETRY_BIND_ADDRESS_KEY);
+    const portRow = db.prepare('SELECT value FROM config WHERE key = ?').get(UDP_TELEMETRY_PORT_KEY);
+    const address = (addrRow && addrRow.value) ? String(addrRow.value).trim() : DEFAULT_UDP_BIND_ADDRESS;
+    let port = portRow && portRow.value ? parseInt(portRow.value, 10) : DEFAULT_UDP_PORT;
+    if (Number.isNaN(port) || port < MIN_UDP_PORT || port > MAX_UDP_PORT) port = DEFAULT_UDP_PORT;
+    res.json({ bindAddress: address || DEFAULT_UDP_BIND_ADDRESS, port });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function setUdpTelemetryConfig(req, res) {
+  try {
+    const db = getDb();
+    let { bindAddress, port } = req.body;
+    bindAddress = typeof bindAddress === 'string' ? bindAddress.trim() : '';
+    if (!bindAddress) bindAddress = DEFAULT_UDP_BIND_ADDRESS;
+    port = parseInt(port, 10);
+    if (Number.isNaN(port)) {
+      return res.status(400).json({ error: 'port must be a number' });
+    }
+    const clampedPort = Math.max(MIN_UDP_PORT, Math.min(MAX_UDP_PORT, port));
+    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(UDP_TELEMETRY_BIND_ADDRESS_KEY, bindAddress);
+    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(UDP_TELEMETRY_PORT_KEY, String(clampedPort));
+    telemetryService.start(() => ({ bindAddress, port: clampedPort }));
+    res.json({ bindAddress, port: clampedPort });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function getDriverAliasValue() {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT value FROM config WHERE key = ?').get(UDP_TELEMETRY_DRIVER_ALIAS_KEY);
+    const v = row && row.value ? String(row.value).trim() : '';
+    return v || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function getUdpTelemetryDriverAlias(req, res) {
+  try {
+    const driverAlias = getDriverAliasValue();
+    res.json({ driverAlias: driverAlias ?? '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function setUdpTelemetryDriverAlias(req, res) {
+  try {
+    const db = getDb();
+    let { driverAlias } = req.body;
+    driverAlias = typeof driverAlias === 'string' ? driverAlias.trim() : '';
+    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(UDP_TELEMETRY_DRIVER_ALIAS_KEY, driverAlias);
+    res.json({ driverAlias });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+module.exports = {
+  getDashboardTracks,
+  setDashboardTracks,
+  getDashboardTitle,
+  setDashboardTitle,
+  getDashboardUp,
+  setDashboardUp,
+  getDisabledDrivers,
+  setDisabledDrivers,
+  getTrackOutlineImage,
+  setTrackOutlineImage,
+  hasTrackOutline,
+  getTrackOutlineTrackIds,
+  getCarouselInterval,
+  setCarouselInterval,
+  getUdpTelemetryConfig,
+  setUdpTelemetryConfig,
+  getDriverAliasValue,
+  getUdpTelemetryDriverAlias,
+  setUdpTelemetryDriverAlias,
+};

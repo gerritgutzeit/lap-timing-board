@@ -13,6 +13,10 @@ import {
   setDashboardUp,
   fetchCarouselInterval,
   setCarouselInterval,
+  fetchUdpTelemetryConfig,
+  setUdpTelemetryConfig,
+  fetchUdpTelemetryDriverAlias,
+  setUdpTelemetryDriverAlias,
   getTrackOutlineTrackIds,
   uploadTrackOutline,
   createTrack,
@@ -56,6 +60,9 @@ export default function AdminPage() {
   const [editDriver, setEditDriver] = useState('');
   const [editLapTime, setEditLapTime] = useState('');
   const [apiBase, setApiBase] = useState<string>('');
+  const [udpBindAddress, setUdpBindAddress] = useState<string>('0.0.0.0');
+  const [udpPort, setUdpPort] = useState<number>(20777);
+  const [udpDriverAlias, setUdpDriverAlias] = useState<string>('');
 
   useEffect(() => {
     setApiBase(getApiBase());
@@ -83,6 +90,11 @@ export default function AdminPage() {
       setCarouselIntervalSec(Math.round(intervalMs / 1000));
       const outlineIds = await getTrackOutlineTrackIds().catch(() => []);
       setTrackOutlineTrackIds(outlineIds);
+      const udp = await fetchUdpTelemetryConfig().catch(() => ({ bindAddress: '0.0.0.0', port: 20777 }));
+      setUdpBindAddress(udp.bindAddress);
+      setUdpPort(udp.port);
+      const alias = await fetchUdpTelemetryDriverAlias().catch(() => '');
+      setUdpDriverAlias(alias);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
@@ -267,6 +279,30 @@ export default function AdminPage() {
     }
   };
 
+  const handleSaveUdpTelemetry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const port = Math.max(1024, Math.min(65535, Math.round(Number(udpPort) || 20777)));
+    try {
+      await setUdpTelemetryConfig({ bindAddress: udpBindAddress.trim() || '0.0.0.0', port });
+      setUdpPort(port);
+      setUdpBindAddress(udpBindAddress.trim() || '0.0.0.0');
+      showSuccess('UDP telemetry settings saved. Listener restarted.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save UDP telemetry settings');
+    }
+  };
+
+  const handleSaveUdpDriverAlias = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const alias = await setUdpTelemetryDriverAlias(udpDriverAlias);
+      setUdpDriverAlias(alias);
+      showSuccess('Driver alias saved. Live view will show this name instead of the game name.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save driver alias');
+    }
+  };
+
   const handleTrackOutlineUpload = async (trackId: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -432,6 +468,64 @@ export default function AdminPage() {
             >
               Set DOWN
             </button>
+          </div>
+        </section>
+
+        <section className="bg-f1-panel border border-f1-border rounded-xl p-6">
+          <h2 className="font-display text-lg font-semibold text-white mb-4">
+            F1 25 UDP TELEMETRY
+          </h2>
+          <p className="text-f1-muted text-sm mb-4">
+            IP and port the backend listens on for F1 25 game UDP telemetry. Set the same port in the game&apos;s UDP settings (e.g. 20777). Bind address 0.0.0.0 listens on all interfaces. Save restarts the listener.
+          </p>
+          <form onSubmit={handleSaveUdpTelemetry} className="flex flex-wrap items-center gap-3">
+            <label className="text-f1-muted text-sm">
+              Bind address
+              <input
+                type="text"
+                value={udpBindAddress}
+                onChange={(e) => setUdpBindAddress(e.target.value)}
+                placeholder="0.0.0.0"
+                className="ml-2 bg-f1-dark border border-f1-border rounded-lg px-4 py-2 text-white placeholder-f1-muted focus:outline-none focus:ring-2 focus:ring-f1-red min-w-[120px]"
+              />
+            </label>
+            <label className="text-f1-muted text-sm">
+              Port
+              <input
+                type="number"
+                min={1024}
+                max={65535}
+                value={udpPort}
+                onChange={(e) => setUdpPort(Number(e.target.value) || 20777)}
+                className="ml-2 bg-f1-dark border border-f1-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-f1-red w-24"
+              />
+            </label>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-f1-red text-white font-medium rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Save & restart listener
+            </button>
+          </form>
+          <div className="mt-6 pt-6 border-t border-f1-border">
+            <p className="text-f1-muted text-sm mb-3">
+              Display name shown in the live telemetry view. If set, this alias is shown instead of the name parsed from the game (e.g. your Steam/gamer tag). Leave empty to use the game name.
+            </p>
+            <form onSubmit={handleSaveUdpDriverAlias} className="flex flex-wrap items-center gap-3">
+              <input
+                type="text"
+                value={udpDriverAlias}
+                onChange={(e) => setUdpDriverAlias(e.target.value)}
+                placeholder="e.g. Max, Player 1"
+                className="bg-f1-dark border border-f1-border rounded-lg px-4 py-2 text-white placeholder-f1-muted focus:outline-none focus:ring-2 focus:ring-f1-red min-w-[180px]"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-f1-red text-white font-medium rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Save alias
+              </button>
+            </form>
           </div>
         </section>
 

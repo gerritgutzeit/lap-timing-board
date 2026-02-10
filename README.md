@@ -88,6 +88,27 @@ The SQLite DB and tables are created on first run. To init explicitly: `cd backe
 1. Open **http://localhost:3000** → **Admin** to add tracks and lap times.
 2. Open **http://localhost:3000/dashboard** for the live timing board (select tracks in Admin → Dashboard track selection).
 
+### F1 25 live telemetry (UDP)
+
+The dashboard can show **live lap time** from F1 25 when the game sends UDP telemetry to the backend.
+
+1. **Backend:** Ensure the backend is running (it listens for UDP on the port set in Admin, default **20777**).
+2. **In-game (F1 25):** Enable UDP output and set:
+   - **IP address:** The PC where the backend runs. Use `127.0.0.1` (or `localhost`) if the game and backend are on the same machine; use that PC’s LAN IP (e.g. `192.168.1.10`) if the game runs on another PC.
+   - **Port:** Same as in Admin (default **20777**).
+   - UDP / telemetry output is usually under **Settings → Telemetry** or **Broadcast**.
+3. **Admin:** Set **F1 25 UDP Telemetry** → Bind address (e.g. `0.0.0.0`) and Port (e.g. `20777`) → Save.
+4. **Dashboard:** Open **http://localhost:3000/dashboard**. When you are in a session and the game is sending data, the view switches to a large **live current lap** (and last lap). When no data is received for a few seconds, the normal dashboard is shown.
+
+**Troubleshooting**
+
+- **No live lap on dashboard:**  
+  - Watch the **backend console**. You should see `[F1 25 UDP] Listening on 0.0.0.0:20777`. When the game sends packets you’ll see logs like “First packet received” or “Lap Data: current=…ms”.  
+  - If you see **no UDP logs**: the game is not sending to this PC/port. Check in-game IP and port, and firewall (allow UDP **in** on the telemetry port).  
+  - If you see “First packet received” but **packetId** is not 2 or size is not 1285: the game may be using a different format; the log shows size and packetId to compare.  
+- **Same machine:** Use IP `127.0.0.1` in the game and bind address `0.0.0.0` in Admin.  
+- **Game on another PC:** Use the backend PC’s LAN IP in the game and ensure the backend port is open for UDP (e.g. Windows Firewall → Inbound rule for port 20777).
+
 ---
 
 ## API

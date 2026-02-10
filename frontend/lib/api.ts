@@ -74,6 +74,22 @@ export async function fetchFastestLaps(trackId: number): Promise<Lap[]> {
   return res.json();
 }
 
+/** Fastest lap in DB for a track matched by name (for telemetry comparison). */
+export type FastestLapByTrackName = {
+  trackId: number;
+  trackName: string;
+  fastest: { lapTime: string; driverName: string; lapId: number } | null;
+};
+
+export async function fetchFastestLapByTrackName(trackName: string): Promise<FastestLapByTrackName | null> {
+  const name = String(trackName).trim();
+  if (!name) return null;
+  const res = await fetch(`${getApiBase()}/laps/fastest-by-track-name?name=${encodeURIComponent(name)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to fetch fastest lap by track name');
+  return res.json();
+}
+
 export async function createLap(driver_name: string, lap_time: string, track_id: number): Promise<Lap> {
   const res = await fetch(`${getApiBase()}/laps`, {
     method: 'POST',
@@ -264,4 +280,57 @@ export async function importDatabase(backup: DatabaseBackup): Promise<{ success:
     throw new Error((err as { error?: string }).error || 'Failed to import database');
   }
   return res.json();
+}
+
+/** F1 25 UDP telemetry: live lap state from Lap Data packets. */
+export type TelemetryLiveState = {
+  currentLapTimeMs: number | null;
+  lastLapTimeMs: number | null;
+  receivedAt: number | null;
+  error: string | null;
+  isHot: boolean;
+  trackName: string | null;
+  driverName: string | null;
+};
+
+export async function fetchTelemetryLive(): Promise<TelemetryLiveState> {
+  const res = await fetch(`${getApiBase()}/telemetry/live`);
+  if (!res.ok) throw new Error('Failed to fetch telemetry');
+  return res.json();
+}
+
+export type UdpTelemetryConfig = { bindAddress: string; port: number };
+
+export async function fetchUdpTelemetryConfig(): Promise<UdpTelemetryConfig> {
+  const res = await fetch(`${getApiBase()}/config/udp-telemetry`);
+  if (!res.ok) throw new Error('Failed to fetch UDP telemetry config');
+  return res.json();
+}
+
+export async function setUdpTelemetryConfig(config: UdpTelemetryConfig): Promise<UdpTelemetryConfig> {
+  const res = await fetch(`${getApiBase()}/config/udp-telemetry`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error('Failed to save UDP telemetry config');
+  return res.json();
+}
+
+export async function fetchUdpTelemetryDriverAlias(): Promise<string> {
+  const res = await fetch(`${getApiBase()}/config/udp-telemetry-driver-alias`);
+  if (!res.ok) throw new Error('Failed to fetch driver alias');
+  const data = await res.json();
+  return typeof data.driverAlias === 'string' ? data.driverAlias : '';
+}
+
+export async function setUdpTelemetryDriverAlias(driverAlias: string): Promise<string> {
+  const res = await fetch(`${getApiBase()}/config/udp-telemetry-driver-alias`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ driverAlias: String(driverAlias).trim() }),
+  });
+  if (!res.ok) throw new Error('Failed to save driver alias');
+  const data = await res.json();
+  return typeof data.driverAlias === 'string' ? data.driverAlias : '';
 }
