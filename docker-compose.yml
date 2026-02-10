@@ -4,6 +4,7 @@ services:
     build: ./backend
     ports:
       - "3001:3001"
+      - "20777:20777/udp"   # F1 25 UDP telemetry (game sends to host:20777)
     volumes:
       - f1-data:/app/data
       - f1-uploads:/app/uploads

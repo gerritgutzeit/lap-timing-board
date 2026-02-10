@@ -51,6 +51,22 @@ export async function createTrack(name: string, country: string): Promise<Track>
   return text ? JSON.parse(text) : ({ id: 0, name, country, created_at: new Date().toISOString() } as Track);
 }
 
+export async function updateTrack(
+  id: number,
+  data: { name: string; country: string }
+): Promise<Track> {
+  const res = await fetch(`${getApiBase()}/tracks/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to update track');
+  }
+  return res.json();
+}
+
 export async function deleteTrack(id: number): Promise<void> {
   const res = await fetch(`${getApiBase()}/tracks/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error('Failed to delete track');
@@ -252,6 +268,14 @@ export async function uploadTrackOutline(trackId: number, base64Image: string): 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || 'Failed to upload image');
+  }
+}
+
+export async function deleteTrackOutline(trackId: number): Promise<void> {
+  const res = await fetch(`${getApiBase()}/config/track-outline/${trackId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to delete outline');
   }
 }
 

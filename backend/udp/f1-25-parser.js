@@ -55,7 +55,7 @@ const TRACK_IDS = {
   14: 'Abu Dhabi',
   15: 'Texas',
   16: 'Bahrain',
-  17: 'China',
+  17: 'Red Bull Ring',
   18: 'Portugal',
   19: 'Italy',
   20: 'Jeddah',

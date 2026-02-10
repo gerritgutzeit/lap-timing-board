@@ -21,6 +21,7 @@ import {
 import CountryFlag from '@/components/CountryFlag';
 
 const DEFAULT_SLIDE_INTERVAL_MS = 10000;
+const REFRESH_MS = 5000; // same as dashboard – live refresh of lap data
 
 /** Format lap time from milliseconds to fixed-width MM:SS.hh (e.g. 01:32.84) so digits don't jump. */
 function formatLapTimeFromMs(ms: number): string {
@@ -119,7 +120,12 @@ export default function CarouselPage() {
   const [lastLapFullscreen, setLastLapFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
   const [newRecordFullscreen, setNewRecordFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
   const hasSetCarouselRef = useRef(false);
+  const lapsByTrackRef = useRef<Record<number, Lap[]>>({});
   const now = useClock();
+
+  useEffect(() => {
+    lapsByTrackRef.current = lapsByTrack;
+  }, [lapsByTrack]);
 
   useEffect(() => {
     setMounted(true);
@@ -155,7 +161,8 @@ export default function CarouselPage() {
     setNewRecordFullscreen(null);
     const t = setTimeout(() => setLastLapFullscreen(null), 4000);
     return () => clearTimeout(t);
-  }, [telemetry?.lastLapTimeMs, fastestDbLap?.fastest?.lapTime]);
+  // Only depend on lastLapTimeMs so the timeout is not cleared when fastestDbLap loads
+  }, [telemetry?.lastLapTimeMs]);
 
   // Poll F1 25 UDP telemetry; when hot, show live lap overlay on carousel
   useEffect(() => {
@@ -177,7 +184,7 @@ export default function CarouselPage() {
     };
   }, []);
 
-  const showLiveLapView = !!telemetry?.isHot && telemetry?.currentLapTimeMs != null;
+  const showLiveLapView = !!telemetry?.isHot && (telemetry?.currentLapTimeMs != null && telemetry.currentLapTimeMs > 0);
 
   const timeStr = mounted ? now.toTimeString().slice(0, 8).replace(/:/g, ' ') : '— — —';
   const dateStr = mounted ? now.toISOString().slice(0, 10).replace(/-/g, ' ') : '— — — — —';
@@ -192,13 +199,13 @@ export default function CarouselPage() {
     }
   };
 
-  const loadLapsForTracks = async (trackIds: number[]) => {
+  const loadLapsForTracks = async (trackIds: number[], isBackgroundRefresh?: boolean) => {
     if (trackIds.length === 0) {
       setLapsByTrack({});
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!isBackgroundRefresh) setLoading(true);
     setError(null);
     try {
       const results = await Promise.all(
@@ -308,6 +315,30 @@ export default function CarouselPage() {
     }, interval);
     return () => clearInterval(t);
   }, [totalSlides, slideIntervalMs]);
+
+  // Live refresh: re-fetch dashboard track selection and lap data every REFRESH_MS (same as dashboard)
+  // so cards and track list stay in sync with Admin → Dashboard track selection
+  const carouselTrackIds = useMemo(() => carouselTracks.map((t) => t.id), [carouselTracks]);
+  useEffect(() => {
+    if (carouselTrackIds.length === 0) return; // initial load is done by the effect that runs when tracks load
+    const interval = setInterval(async () => {
+      const ids = await fetchDashboardTracks().catch(() => []);
+      const list = ids.map((id) => tracks.find((t) => t.id === id)).filter(Boolean) as Track[];
+      const trackList = list.length > 0 ? list : tracks;
+      const newIdsStr = trackList.map((t) => t.id).join(',');
+      const currentIdsStr = carouselTrackIds.join(',');
+      if (trackList.length > 0 && newIdsStr !== currentIdsStr) {
+        setCarouselTracks(trackList);
+        loadLapsForTracks(
+          trackList.map((t) => t.id),
+          true
+        );
+      } else {
+        loadLapsForTracks(carouselTrackIds, true);
+      }
+    }, REFRESH_MS);
+    return () => clearInterval(interval);
+  }, [carouselTrackIds.join(','), tracks]);
 
   const cardsToShow = useMemo(() => carouselTracks.slice(0, 4), [carouselTracks]);
 

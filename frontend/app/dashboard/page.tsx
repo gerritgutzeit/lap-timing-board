@@ -102,7 +102,8 @@ export default function DashboardPage() {
     setNewRecordFullscreen(null);
     const t = setTimeout(() => setLastLapFullscreen(null), 4000);
     return () => clearTimeout(t);
-  }, [telemetry?.lastLapTimeMs, fastestDbLap?.fastest?.lapTime]);
+  // Only depend on lastLapTimeMs so the timeout is not cleared when fastestDbLap loads
+  }, [telemetry?.lastLapTimeMs]);
 
   // When live view shows a track, fetch fastest lap from DB for comparison
   useEffect(() => {
@@ -252,7 +253,7 @@ export default function DashboardPage() {
 
   const backendUnreachable = !!error;
   const showFullscreenStatus = backendUnreachable || !dashboardUp;
-  const showLiveLapView = !!telemetry?.isHot && telemetry?.currentLapTimeMs != null;
+  const showLiveLapView = !!telemetry?.isHot && (telemetry?.currentLapTimeMs != null && telemetry.currentLapTimeMs > 0);
 
   useEffect(() => {
     const wasFullscreen = prevShowFullscreenStatusRef.current;

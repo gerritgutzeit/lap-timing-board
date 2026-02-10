@@ -13,6 +13,7 @@ router.put('/disabled-drivers', configController.setDisabledDrivers);
 router.get('/track-outline/track-ids', configController.getTrackOutlineTrackIds);
 router.get('/track-outline/:trackId', configController.getTrackOutlineImage);
 router.put('/track-outline/:trackId', configController.setTrackOutlineImage);
+router.delete('/track-outline/:trackId', configController.deleteTrackOutlineImage);
 router.get('/track-outline/:trackId/exists', configController.hasTrackOutline);
 router.get('/carousel-interval', configController.getCarouselInterval);
 router.put('/carousel-interval', configController.setCarouselInterval);

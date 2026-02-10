@@ -187,6 +187,20 @@ function hasTrackOutline(req, res) {
   }
 }
 
+function deleteTrackOutlineImage(req, res) {
+  try {
+    const trackId = req.params.trackId;
+    const filePath = getTrackOutlinePath(trackId);
+    if (!filePath) return res.status(400).json({ error: 'Invalid track id' });
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 function getTrackOutlineTrackIds(req, res) {
   try {
     if (!fs.existsSync(TRACK_OUTLINE_DIR)) {
@@ -310,6 +324,7 @@ module.exports = {
   setDisabledDrivers,
   getTrackOutlineImage,
   setTrackOutlineImage,
+  deleteTrackOutlineImage,
   hasTrackOutline,
   getTrackOutlineTrackIds,
   getCarouselInterval,

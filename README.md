@@ -150,6 +150,8 @@ docker-compose up --build -d
 - **Backend:** http://localhost:3001  
 - Data (DB + uploads) is stored in Docker volumes.
 
+**F1 25 telemetry in Docker:** The backend must receive UDP on port **20777** from the game. Compose publishes `20777/udp` so the game can send to the **host** (e.g. the server’s LAN IP or `127.0.0.1` if the game is on the same machine). In-game set UDP **IP** = that host, **Port** = 20777. In Admin set UDP port 20777 (bind address `0.0.0.0` is correct inside the container).
+
 The frontend uses the **browser’s host** for the API when you don’t set `NEXT_PUBLIC_API_URL`, so the same image works when you open the app from another machine (e.g. `http://server-ip:3000` → API: `http://server-ip:3001/api`). To force a specific URL (e.g. for a reverse proxy), set before building:
 
 ```bash
