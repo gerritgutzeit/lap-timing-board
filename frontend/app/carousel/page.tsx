@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import {
   fetchTracks,
@@ -8,31 +8,20 @@ import {
   fetchDashboardTracks,
   fetchDashboardTitle,
   fetchCarouselInterval,
-  fetchTelemetryLive,
-  fetchFastestLapByTrackName,
   getTrackOutlineImageUrl,
   getTrackOutlineTrackIds,
   hasTrackOutline,
   type Track,
   type Lap,
-  type TelemetryLiveState,
-  type FastestLapByTrackName,
 } from '@/lib/api';
 import CountryFlag from '@/components/CountryFlag';
+import { useTelemetryLive, TelemetryLiveViewUI } from '@/components/TelemetryLiveView';
 
 const DEFAULT_SLIDE_INTERVAL_MS = 10000;
 const REFRESH_MS = 5000; // same as dashboard – live refresh of lap data
-
-/** Format lap time from milliseconds to fixed-width MM:SS.hh (e.g. 01:32.84) so digits don't jump. */
-function formatLapTimeFromMs(ms: number): string {
-  if (ms == null || Number.isNaN(ms) || ms < 0) return '——:——.—';
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  const hundredths = Math.floor((seconds % 1) * 100);
-  const secs = Math.floor(seconds);
-  return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-}
+const CAROUSEL_CARDS_STAND_MIN_MS = 10000; // when cards have scroll: delay + scroll duration
+const CAROUSEL_CARDS_STAND_AFTER_SCROLL_MS = 2000; // after scroll ends, let cards stand 2s before next slide
+const CAROUSEL_CARDS_SCROLL_DELAY_MS = 2000; // start scrolling after 2s for readability
 
 function lapTimeToSeconds(lapTime: string): number {
   const match = lapTime.trim().match(/^(\d{1,2}):(\d{2})\.(\d{3})$/);
@@ -43,20 +32,6 @@ function lapTimeToSeconds(lapTime: string): number {
 
 function formatDelta(seconds: number): string {
   if (seconds <= 0) return '';
-  return `+${seconds.toFixed(3)}s`;
-}
-
-/** Delta of last lap vs record: negative = faster (green), positive = slower (red). Returns null if can't compute. */
-function lastLapDeltaVsRecord(lastLapMs: number | null | undefined, recordLapTime: string | undefined): number | null {
-  if (lastLapMs == null || lastLapMs <= 0 || !recordLapTime?.trim()) return null;
-  const recordSeconds = lapTimeToSeconds(recordLapTime);
-  if (recordSeconds <= 0) return null;
-  return lastLapMs / 1000 - recordSeconds;
-}
-
-function formatDeltaSigned(seconds: number): string {
-  if (seconds === 0) return '0.000s';
-  if (seconds < 0) return `${seconds.toFixed(3)}s`;
   return `+${seconds.toFixed(3)}s`;
 }
 
@@ -114,14 +89,17 @@ export default function CarouselPage() {
   const [dashboardTitle, setDashboardTitle] = useState<string>('F1 TIMING');
   const [slideIntervalMs, setSlideIntervalMs] = useState<number>(DEFAULT_SLIDE_INTERVAL_MS);
   const [mounted, setMounted] = useState(false);
-  const [telemetry, setTelemetry] = useState<TelemetryLiveState | null>(null);
-  const [fastestDbLap, setFastestDbLap] = useState<FastestLapByTrackName | null>(null);
-  const prevLastLapTimeMsRef = useRef<number | null>(null);
-  const [lastLapFullscreen, setLastLapFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
-  const [newRecordFullscreen, setNewRecordFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
   const hasSetCarouselRef = useRef(false);
   const lapsByTrackRef = useRef<Record<number, Lap[]>>({});
   const now = useClock();
+  const telemetryLiveState = useTelemetryLive();
+  const { showLiveLapView } = telemetryLiveState;
+  const cardsScrollRef = useRef<HTMLDivElement>(null);
+  const cardsHasScrollRef = useRef(false);
+  const cardsSlideEnteredAtRef = useRef(0);
+  const advanceTimeoutIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cardsFitInView, setCardsFitInView] = useState(false);
+  const [visibleCardIds, setVisibleCardIds] = useState<Set<number>>(() => new Set());
 
   useEffect(() => {
     lapsByTrackRef.current = lapsByTrack;
@@ -130,61 +108,6 @@ export default function CarouselPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // When live view shows a track, fetch fastest lap from DB for comparison
-  useEffect(() => {
-    if (!telemetry?.trackName?.trim()) {
-      setFastestDbLap(null);
-      return;
-    }
-    let cancelled = false;
-    fetchFastestLapByTrackName(telemetry.trackName)
-      .then((data) => { if (!cancelled) setFastestDbLap(data ?? null); })
-      .catch(() => { if (!cancelled) setFastestDbLap(null); });
-    return () => { cancelled = true; };
-  }, [telemetry?.trackName]);
-
-  // When last lap time updates: fullscreen "new record" (10s) if faster than record, else "last lap + delta" (4s)
-  useEffect(() => {
-    const ms = telemetry?.lastLapTimeMs;
-    if (ms == null || ms <= 0) return;
-    if (prevLastLapTimeMsRef.current === ms) return;
-    prevLastLapTimeMsRef.current = ms;
-    const delta = lastLapDeltaVsRecord(ms, fastestDbLap?.fastest?.lapTime);
-    if (delta != null && delta < 0) {
-      setNewRecordFullscreen({ lastLapTimeMs: ms });
-      setLastLapFullscreen(null);
-      const t = setTimeout(() => setNewRecordFullscreen(null), 10000);
-      return () => clearTimeout(t);
-    }
-    setLastLapFullscreen({ lastLapTimeMs: ms });
-    setNewRecordFullscreen(null);
-    const t = setTimeout(() => setLastLapFullscreen(null), 4000);
-    return () => clearTimeout(t);
-  // Only depend on lastLapTimeMs so the timeout is not cleared when fastestDbLap loads
-  }, [telemetry?.lastLapTimeMs]);
-
-  // Poll F1 25 UDP telemetry; when hot, show live lap overlay on carousel
-  useEffect(() => {
-    let cancelled = false;
-    const poll = async () => {
-      if (cancelled) return;
-      try {
-        const state = await fetchTelemetryLive();
-        if (!cancelled) setTelemetry(state);
-      } catch {
-        if (!cancelled) setTelemetry(null);
-      }
-    };
-    poll();
-    const interval = setInterval(poll, 150);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  const showLiveLapView = !!telemetry?.isHot && (telemetry?.currentLapTimeMs != null && telemetry.currentLapTimeMs > 0);
 
   const timeStr = mounted ? now.toTimeString().slice(0, 8).replace(/:/g, ' ') : '— — —';
   const dateStr = mounted ? now.toISOString().slice(0, 10).replace(/-/g, ' ') : '— — — — —';
@@ -307,14 +230,30 @@ export default function CarouselPage() {
     hasTrackOutline(currentTrack.id).then(setHasTrackOutlineImage).catch(() => setHasTrackOutlineImage(false));
   }, [currentTrack?.id]);
 
+  // Slide advance: when on cards with scroll, stay at least 10s; otherwise use carousel interval
   useEffect(() => {
     if (totalSlides <= 0) return;
     const interval = Math.max(3000, Math.min(120000, slideIntervalMs));
-    const t = setInterval(() => {
+    if (currentSlideType === 'cards') {
+      cardsSlideEnteredAtRef.current = Date.now();
+    } else {
+      cardsHasScrollRef.current = false;
+    }
+    const delay =
+      currentSlideType === 'cards' && cardsHasScrollRef.current
+        ? Math.max(interval, CAROUSEL_CARDS_STAND_MIN_MS)
+        : interval;
+    advanceTimeoutIdRef.current = setTimeout(() => {
+      advanceTimeoutIdRef.current = null;
       setSlideIndex((i) => i + 1);
-    }, interval);
-    return () => clearInterval(t);
-  }, [totalSlides, slideIntervalMs]);
+    }, delay);
+    return () => {
+      if (advanceTimeoutIdRef.current) {
+        clearTimeout(advanceTimeoutIdRef.current);
+        advanceTimeoutIdRef.current = null;
+      }
+    };
+  }, [totalSlides, slideIndex, currentSlideType, slideIntervalMs]);
 
   // Live refresh: re-fetch dashboard track selection and lap data every REFRESH_MS (same as dashboard)
   // so cards and track list stay in sync with Admin → Dashboard track selection
@@ -340,7 +279,109 @@ export default function CarouselPage() {
     return () => clearInterval(interval);
   }, [carouselTrackIds.join(','), tracks]);
 
-  const cardsToShow = useMemo(() => carouselTracks.slice(0, 4), [carouselTracks]);
+  // All tracks for the cards slide (show all; container scrolls if needed)
+  const cardsToShow = useMemo(() => carouselTracks, [carouselTracks]);
+
+  // Measure before paint: if cards fit (no scroll), center them; otherwise top-align so scroll starts at top
+  useLayoutEffect(() => {
+    if (currentSlideType !== 'cards') {
+      setCardsFitInView(false);
+      return;
+    }
+    const el = cardsScrollRef.current;
+    if (!el) return;
+    const fits = el.scrollHeight <= el.clientHeight;
+    setCardsFitInView(fits);
+  }, [currentSlideType, slideIndex, cardsToShow.length, lapsByTrack]);
+
+  // Ease-in-out cubic for smooth scroll start and end
+  const easeInOutCubic = (t: number) =>
+    t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  // Scroll duration: remaining time after 2s delay, so total time on slide >= 10s when there's scroll
+  const scrollDurationMs = Math.max(CAROUSEL_CARDS_STAND_MIN_MS - CAROUSEL_CARDS_SCROLL_DELAY_MS, 8000);
+
+  // When entering cards view with scroll, ensure we start at top
+  useLayoutEffect(() => {
+    if (currentSlideType !== 'cards') return;
+    const el = cardsScrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, [currentSlideType, slideIndex]);
+
+  // Reset visible cards when leaving cards slide so they animate in again next time
+  useEffect(() => {
+    if (currentSlideType !== 'cards') setVisibleCardIds(new Set());
+  }, [currentSlideType]);
+
+  // Intersection observer: animate cards in as they scroll into view
+  useEffect(() => {
+    if (currentSlideType !== 'cards') return;
+    const root = cardsScrollRef.current;
+    if (!root) return;
+    const cards = root.querySelectorAll('[data-card]');
+    if (cards.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const id = Number((entry.target as HTMLElement).dataset.trackId);
+          if (Number.isNaN(id)) continue;
+          setVisibleCardIds((prev) => (prev.has(id) ? prev : new Set(Array.from(prev).concat(id))));
+        }
+      },
+      { root, rootMargin: '0px 0px -24px 0px', threshold: 0 }
+    );
+    cards.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [currentSlideType, slideIndex, cardsToShow.length]);
+
+  useEffect(() => {
+    if (currentSlideType !== 'cards') return;
+    const el = cardsScrollRef.current;
+    if (!el) return;
+
+    let rafId = 0;
+    let delayTimeoutId: ReturnType<typeof setTimeout>;
+
+    const start = () => {
+      el.scrollTop = 0;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll <= 0) {
+        cardsHasScrollRef.current = false;
+        return;
+      }
+      cardsHasScrollRef.current = true;
+
+      // Reschedule slide advance: delay + scroll + 2s stand after scroll
+      if (advanceTimeoutIdRef.current) {
+        clearTimeout(advanceTimeoutIdRef.current);
+        advanceTimeoutIdRef.current = null;
+      }
+      const totalCardsTimeMs = CAROUSEL_CARDS_STAND_MIN_MS + CAROUSEL_CARDS_STAND_AFTER_SCROLL_MS;
+      const elapsed = Date.now() - cardsSlideEnteredAtRef.current;
+      const remaining = Math.max(0, totalCardsTimeMs - elapsed);
+      advanceTimeoutIdRef.current = setTimeout(() => {
+        advanceTimeoutIdRef.current = null;
+        setSlideIndex((i) => i + 1);
+      }, remaining);
+
+      const scrollStartTime = performance.now();
+      const tick = (now: number) => {
+        const elapsed = now - scrollStartTime;
+        const t = Math.min(elapsed / scrollDurationMs, 1);
+        const eased = easeInOutCubic(t);
+        el.scrollTop = eased * maxScroll;
+        if (t < 1) rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+    };
+
+    delayTimeoutId = setTimeout(start, CAROUSEL_CARDS_SCROLL_DELAY_MS);
+    return () => {
+      clearTimeout(delayTimeoutId);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [currentSlideType, slideIndex, scrollDurationMs]);
 
   return (
     <main className="min-h-screen bg-techie-bg text-techie-text font-mono text-sm antialiased">
@@ -351,15 +392,9 @@ export default function CarouselPage() {
         >
           {dashboardTitle}
         </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-sm text-techie-dim hover:text-techie-text transition-colors">
-            ← Dashboard
-          </Link>
-          <Link href="/drivers" className="text-sm text-techie-dim hover:text-techie-text transition-colors">
-            Drivers
-          </Link>
-        </div>
       </header>
+
+      <TelemetryLiveViewUI {...telemetryLiveState} className="z-20" />
 
       {error && !showLiveLapView && (
         <div className="relative z-10 px-6 md:px-10">
@@ -368,89 +403,6 @@ export default function CarouselPage() {
           </div>
         </div>
       )}
-
-      {/* Fullscreen: new record – time only, solid background, 10s */}
-      {showLiveLapView && newRecordFullscreen && (
-        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-techie-bg px-6 animate-last-lap-fullscreen-in" aria-live="polite" role="status">
-          <p className="font-display font-black text-2xl sm:text-3xl uppercase tracking-[0.2em] text-green-400 drop-shadow-[0_0_20px_rgba(34,197,94,0.4)] mb-6">
-            New record
-          </p>
-          <p className="font-mono font-bold text-techie-text text-7xl sm:text-8xl md:text-9xl tracking-tight tabular-nums text-center">
-            {formatLapTimeFromMs(newRecordFullscreen.lastLapTimeMs)}
-          </p>
-        </div>
-      )}
-
-      {/* Fullscreen: new lap time + delta (if slower) only, centered – hides live view underneath */}
-      {showLiveLapView && lastLapFullscreen && (
-        <div className="fixed inset-0 z-30 flex flex-col items-center justify-center bg-techie-bg px-6 animate-last-lap-fullscreen-in" aria-live="polite" role="status">
-          <p className="font-mono font-bold text-techie-text text-7xl sm:text-8xl md:text-9xl tracking-tight tabular-nums text-center">
-            {formatLapTimeFromMs(lastLapFullscreen.lastLapTimeMs)}
-          </p>
-          <div className="mt-6 min-h-[3.5rem] flex items-center justify-center">
-            {(() => {
-              const delta = lastLapDeltaVsRecord(lastLapFullscreen.lastLapTimeMs, fastestDbLap?.fastest?.lapTime);
-              if (delta == null || delta <= 0) return null;
-              return (
-                <p className="text-red-400 font-mono text-2xl sm:text-3xl tabular-nums">
-                  {formatDeltaSigned(delta)}
-                </p>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Live F1 25 lap time when UDP telemetry is hot – hidden while any fullscreen overlay is showing */}
-      {showLiveLapView && !lastLapFullscreen && !newRecordFullscreen && (() => {
-        const lastLapDelta = lastLapDeltaVsRecord(telemetry?.lastLapTimeMs, fastestDbLap?.fastest?.lapTime);
-        return (
-        <div className="telemetry-view px-6 bg-techie-bg z-20">
-          <div className="relative z-10 w-full max-w-xl flex flex-col items-center justify-center opacity-0 animate-telemetry-in">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-f1-red/40 bg-f1-red/10 mb-4 animate-telemetry-live-pulse">
-              <span className="w-2 h-2 rounded-full bg-f1-red animate-pulse shadow-[0_0_8px_rgba(225,6,0,0.8)]" />
-              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-f1-red">Live</span>
-            </div>
-            {telemetry?.trackName && (
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-4 text-techie-dim">
-                <span className="text-xl sm:text-2xl font-semibold uppercase tracking-wider text-techie-text">{telemetry.trackName}</span>
-              </div>
-            )}
-            <div className="telemetry-card w-full">
-              <p className="text-techie-dim text-xs uppercase tracking-[0.25em] mb-5">Current lap</p>
-              <div className="w-full flex justify-center">
-                <p
-                  className="telemetry-time-block font-mono font-bold text-techie-text text-6xl sm:text-7xl md:text-8xl tracking-tight animate-telemetry-time-in animate-telemetry-glow"
-                  aria-live="polite"
-                >
-                  {formatLapTimeFromMs(telemetry!.currentLapTimeMs!)}
-                </p>
-              </div>
-            </div>
-            <p className="text-techie-dim text-sm mt-5 font-mono tabular-nums opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}>
-              Last lap <span className="inline-block w-[8ch] text-center">{telemetry?.lastLapTimeMs != null && telemetry.lastLapTimeMs > 0 ? formatLapTimeFromMs(telemetry.lastLapTimeMs) : '—:—.—'}</span>
-              {lastLapDelta != null && (
-                <span
-                  className={`ml-2 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded ${lastLapDelta < 0 ? 'text-green-400 bg-green-500/15' : 'text-red-400 bg-red-500/15'}`}
-                  title={lastLapDelta < 0 ? 'Faster than record' : 'Slower than record'}
-                >
-                  {formatDeltaSigned(lastLapDelta)}
-                </span>
-              )}
-            </p>
-            <p className="text-techie-dim text-sm mt-2 font-mono tabular-nums opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-              Record <span className="inline-block w-[8ch] text-center text-techie-accent">{fastestDbLap?.fastest ? fastestDbLap.fastest.lapTime : '—:—.—'}</span>
-              {fastestDbLap?.fastest?.driverName && <span className="ml-2 text-techie-dim">({fastestDbLap.fastest.driverName})</span>}
-            </p>
-            {telemetry?.driverName && (
-              <p className="text-techie-dim text-sm mt-auto pt-6 opacity-0 animate-telemetry-time-in" style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}>
-                Current Driver: <span className="font-medium text-techie-accent">{telemetry.driverName}</span>
-              </p>
-            )}
-          </div>
-        </div>
-        );
-      })()}
 
       {carouselTracks.length === 0 && !loading && !showLiveLapView && (
         <div className="fixed inset-0 flex items-center justify-center z-10">
@@ -522,21 +474,29 @@ export default function CarouselPage() {
       )}
 
       {!showLiveLapView && currentSlideType === 'cards' && (
-        <div className="relative z-10 px-6 md:px-12 lg:px-16 pb-24 flex flex-col min-h-[calc(100vh-6rem)] justify-center">
-          <div className="max-w-7xl mx-auto w-full">
-            <p className="text-techie-dim text-xs uppercase tracking-widest mb-6 text-center opacity-0 animate-carousel-in-fast" style={{ animationDelay: '0ms' }}>Tracks</p>
+        <div className="relative z-10 px-6 md:px-12 lg:px-16 pb-24 flex flex-col min-h-[calc(100vh-6rem)] max-h-[calc(100vh-6rem)] overflow-hidden">
+          <div className="relative flex-1 min-h-0">
             <div
-              className="grid gap-6 md:gap-8"
-              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))' }}
+              ref={cardsScrollRef}
+              className={`carousel-cards-scroll absolute inset-0 overflow-y-auto ${cardsFitInView ? 'flex flex-col justify-center' : ''}`}
             >
-              {cardsToShow.map((track, idx) => {
+              <div className={`max-w-7xl mx-auto w-full ${cardsFitInView ? 'flex-shrink-0' : ''}`}>
+              <div
+                className="grid gap-6 md:gap-8"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))' }}
+              >
+                {cardsToShow.map((track, idx) => {
                 const laps = lapsByTrack[track.id] ?? [];
                 const hasOutline = trackIdsWithOutline.includes(track.id);
+                const isVisible = visibleCardIds.has(track.id);
                 return (
                   <section
                     key={track.id}
-                    className="bg-techie-surface/70 rounded-xl overflow-hidden flex opacity-0 animate-carousel-card border border-white/10 shadow-lg"
-                    style={{ animationDelay: `${120 + idx * 100}ms` }}
+                    data-card
+                    data-track-id={track.id}
+                    className={`bg-techie-surface/70 rounded-xl overflow-hidden flex border border-white/10 shadow-lg ${
+                      isVisible ? 'animate-cards-scroll-in' : 'opacity-0 translate-y-3.5 scale-[0.98]'
+                    }`}
                   >
                     {hasOutline && (
                       <div className="shrink-0 w-24 sm:w-28 border-r border-white/20 bg-techie-embed/70 flex items-center justify-center p-2 min-h-[120px]">
@@ -571,6 +531,8 @@ export default function CarouselPage() {
                   </section>
                 );
               })}
+              </div>
+            </div>
             </div>
           </div>
         </div>

@@ -10,10 +10,16 @@ export default function HomePage() {
         <p className="text-f1-muted text-lg mb-12">Dashboard</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
           <Link
-            href="/dashboard"
+            href="/display"
             className="px-8 py-4 bg-f1-red text-white font-display font-semibold rounded-lg hover:bg-red-600 transition-colors"
           >
-            LIVE DASHBOARD
+            DISPLAY
+          </Link>
+          <Link
+            href="/dashboard"
+            className="px-8 py-4 border border-f1-border text-f1-text font-display font-medium rounded-lg hover:bg-f1-panel transition-colors"
+          >
+            DASHBOARD
           </Link>
           <Link
             href="/carousel"

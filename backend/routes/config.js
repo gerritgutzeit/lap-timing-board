@@ -17,6 +17,8 @@ router.delete('/track-outline/:trackId', configController.deleteTrackOutlineImag
 router.get('/track-outline/:trackId/exists', configController.hasTrackOutline);
 router.get('/carousel-interval', configController.getCarouselInterval);
 router.put('/carousel-interval', configController.setCarouselInterval);
+router.get('/display-view', configController.getDisplayView);
+router.put('/display-view', configController.setDisplayView);
 router.get('/udp-telemetry', configController.getUdpTelemetryConfig);
 router.put('/udp-telemetry', configController.setUdpTelemetryConfig);
 router.get('/udp-telemetry-driver-alias', configController.getUdpTelemetryDriverAlias);

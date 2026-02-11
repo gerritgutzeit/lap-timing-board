@@ -216,6 +216,26 @@ export async function setCarouselInterval(intervalMs: number): Promise<number> {
   return typeof data.intervalMs === 'number' ? data.intervalMs : intervalMs;
 }
 
+export type DisplayView = 'dashboard' | 'carousel';
+
+export async function fetchDisplayView(): Promise<DisplayView> {
+  const res = await fetch(`${getApiBase()}/config/display-view`);
+  if (res.status === 404 || !res.ok) return 'dashboard';
+  const data = await res.json();
+  return data.view === 'carousel' ? 'carousel' : 'dashboard';
+}
+
+export async function setDisplayView(view: DisplayView): Promise<DisplayView> {
+  const res = await fetch(`${getApiBase()}/config/display-view`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ view }),
+  });
+  if (!res.ok) throw new Error('Failed to save display view');
+  const data = await res.json();
+  return data.view === 'carousel' ? 'carousel' : 'dashboard';
+}
+
 export async function fetchDisabledDrivers(): Promise<string[]> {
   const res = await fetch(`${getApiBase()}/config/disabled-drivers`);
   if (res.status === 404) return [];

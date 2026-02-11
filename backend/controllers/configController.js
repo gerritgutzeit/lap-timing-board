@@ -13,6 +13,10 @@ const DEFAULT_CAROUSEL_INTERVAL_MS = 10000;
 const MIN_CAROUSEL_INTERVAL_MS = 3000;
 const MAX_CAROUSEL_INTERVAL_MS = 120000;
 
+const DISPLAY_VIEW_KEY = 'display_view';
+const DISPLAY_VIEW_DASHBOARD = 'dashboard';
+const DISPLAY_VIEW_CAROUSEL = 'carousel';
+
 const UDP_TELEMETRY_BIND_ADDRESS_KEY = 'udp_telemetry_bind_address';
 const UDP_TELEMETRY_PORT_KEY = 'udp_telemetry_port';
 const UDP_TELEMETRY_DRIVER_ALIAS_KEY = 'udp_telemetry_driver_alias';
@@ -247,6 +251,30 @@ function setCarouselInterval(req, res) {
   }
 }
 
+function getDisplayView(req, res) {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT value FROM config WHERE key = ?').get(DISPLAY_VIEW_KEY);
+    const value = (row && row.value) ? String(row.value).trim() : DISPLAY_VIEW_DASHBOARD;
+    const view = value === DISPLAY_VIEW_CAROUSEL ? DISPLAY_VIEW_CAROUSEL : DISPLAY_VIEW_DASHBOARD;
+    res.json({ view });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function setDisplayView(req, res) {
+  try {
+    const db = getDb();
+    let { view } = req.body;
+    view = view === DISPLAY_VIEW_CAROUSEL ? DISPLAY_VIEW_CAROUSEL : DISPLAY_VIEW_DASHBOARD;
+    db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run(DISPLAY_VIEW_KEY, view);
+    res.json({ view });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 function getUdpTelemetryConfig(req, res) {
   try {
     const db = getDb();
@@ -329,6 +357,8 @@ module.exports = {
   getTrackOutlineTrackIds,
   getCarouselInterval,
   setCarouselInterval,
+  getDisplayView,
+  setDisplayView,
   getUdpTelemetryConfig,
   setUdpTelemetryConfig,
   getDriverAliasValue,

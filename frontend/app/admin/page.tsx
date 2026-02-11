@@ -13,6 +13,8 @@ import {
   setDashboardUp,
   fetchCarouselInterval,
   setCarouselInterval,
+  fetchDisplayView,
+  setDisplayView,
   fetchUdpTelemetryConfig,
   setUdpTelemetryConfig,
   fetchUdpTelemetryDriverAlias,
@@ -32,6 +34,7 @@ import {
   type Track,
   type Lap,
   type DatabaseBackup,
+  type DisplayView,
 } from '@/lib/api';
 
 const MAX_DASHBOARD_TRACKS = 20;
@@ -65,6 +68,7 @@ export default function AdminPage() {
   const [dashboardTitle, setDashboardTitleState] = useState<string>('F1 TIMING');
   const [dashboardUp, setDashboardUpState] = useState(true);
   const [carouselIntervalSec, setCarouselIntervalSec] = useState<number>(10);
+  const [displayView, setDisplayViewState] = useState<DisplayView>('dashboard');
   const [trackOutlineTrackIds, setTrackOutlineTrackIds] = useState<number[]>([]);
   const [trackOutlineUploadingId, setTrackOutlineUploadingId] = useState<number | null>(null);
   const [trackOutlineInputKeys, setTrackOutlineInputKeys] = useState<Record<number, number>>({});
@@ -130,6 +134,8 @@ export default function AdminPage() {
       setDashboardUpState(up);
       const intervalMs = await fetchCarouselInterval().catch(() => 10000);
       setCarouselIntervalSec(Math.round(intervalMs / 1000));
+      const view = await fetchDisplayView().catch(() => 'dashboard');
+      setDisplayViewState(view);
       const outlineIds = await getTrackOutlineTrackIds().catch(() => []);
       setTrackOutlineTrackIds(outlineIds);
       const udp = await fetchUdpTelemetryConfig().catch(() => ({ bindAddress: '0.0.0.0', port: 20777 }));
@@ -359,6 +365,16 @@ export default function AdminPage() {
     }
   };
 
+  const handleSetDisplayView = async (view: DisplayView) => {
+    try {
+      await setDisplayView(view);
+      setDisplayViewState(view);
+      showSuccess(`Display view set to ${view === 'carousel' ? 'Carousel' : 'Dashboard'}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save display view');
+    }
+  };
+
   const handleSaveUdpTelemetry = async (e: React.FormEvent) => {
     e.preventDefault();
     const port = Math.max(1024, Math.min(65535, Math.round(Number(udpPort) || 20777)));
@@ -487,8 +503,14 @@ export default function AdminPage() {
           <Link href="/admin/drivers" className="text-sm text-f1-muted hover:text-f1-text transition-colors">
             Drivers
           </Link>
-          <Link href="/dashboard" className="text-sm text-f1-muted hover:text-f1-text transition-colors">
-            ← Dashboard
+          <Link href="/display" className="text-sm text-f1-muted hover:text-f1-text transition-colors" target="_blank" rel="noopener noreferrer">
+            Display
+          </Link>
+          <Link href="/dashboard" className="text-sm text-f1-muted hover:text-f1-text transition-colors" target="_blank" rel="noopener noreferrer">
+            Dashboard
+          </Link>
+          <Link href="/carousel" className="text-sm text-f1-muted hover:text-f1-text transition-colors" target="_blank" rel="noopener noreferrer">
+            Carousel
           </Link>
           {apiBase && (
             <span className="text-xs text-f1-muted font-mono" title="API base URL">
@@ -544,6 +566,47 @@ export default function AdminPage() {
         {/* ——— Dashboard tab ——— */}
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            <section className="bg-f1-panel border border-f1-border rounded-xl p-6">
+              <h2 className="font-display text-lg font-semibold text-white mb-4">DISPLAY VIEW</h2>
+              <p className="text-f1-muted text-sm mb-4">Choose what the display page shows. Open /display to view the selected mode (e.g. on a second screen).</p>
+              <div className="flex flex-wrap items-center gap-4 mb-4">
+                <span className="text-f1-muted text-sm">Show:</span>
+                <div className="flex rounded-lg border border-f1-border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => handleSetDisplayView('dashboard')}
+                    className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                      displayView === 'dashboard'
+                        ? 'bg-f1-red text-white'
+                        : 'bg-f1-dark text-f1-muted hover:text-white'
+                    }`}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDisplayView('carousel')}
+                    className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                      displayView === 'carousel'
+                        ? 'bg-f1-red text-white'
+                        : 'bg-f1-dark text-f1-muted hover:text-white'
+                    }`}
+                  >
+                    Carousel
+                  </button>
+                </div>
+              </div>
+              <a
+                href="/display"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 border border-f1-border text-white font-medium rounded-lg hover:bg-f1-panel transition-colors"
+              >
+                Open display
+                <span className="text-xs opacity-80">↗</span>
+              </a>
+            </section>
+
             <section className="bg-f1-panel border border-f1-border rounded-xl p-6">
               <h2 className="font-display text-lg font-semibold text-white mb-4">DASHBOARD HEADLINE</h2>
               <p className="text-f1-muted text-sm mb-4">Main title on the dashboard. Save to apply.</p>

@@ -40,6 +40,7 @@ module.exports = {
         'carousel-in': 'carouselIn 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-in-fast': 'carouselIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-card': 'carouselCard 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'cards-scroll-in': 'cardsScrollIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'carousel-driver': 'carouselDriver 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-row': 'carouselRow 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'carousel-outline': 'carouselOutline 1s cubic-bezier(0.16, 1, 0.3, 1) forwards',
@@ -93,6 +94,10 @@ module.exports = {
         carouselCard: {
           '0%': { opacity: '0', transform: 'translateY(24px) scale(0.96)', boxShadow: '0 0 0 rgba(255,255,255,0)' },
           '100%': { opacity: '1', transform: 'translateY(0) scale(1)', boxShadow: '0 4px 24px rgba(0,0,0,0.2)' },
+        },
+        cardsScrollIn: {
+          '0%': { opacity: '0', transform: 'translateY(14px) scale(0.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         carouselDriver: {
           '0%': { opacity: '0', transform: 'translateY(20px)' },
