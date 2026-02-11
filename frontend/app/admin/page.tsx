@@ -311,6 +311,10 @@ export default function AdminPage() {
     setDashboardTrackIds(allIds.length < MAX_DASHBOARD_TRACKS ? [...allIds, ''] : allIds);
   };
 
+  const setDashboardTrackHideAll = () => {
+    setDashboardTrackIds(['']);
+  };
+
   const removeDashboardTrackSlot = (slotIndex: number) => {
     setDashboardTrackIds((prev) => {
       const next = prev.filter((_, i) => i !== slotIndex);
@@ -596,15 +600,6 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-              <a
-                href="/display"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 border border-f1-border text-white font-medium rounded-lg hover:bg-f1-panel transition-colors"
-              >
-                Open display
-                <span className="text-xs opacity-80">↗</span>
-              </a>
             </section>
 
             <section className="bg-f1-panel border border-f1-border rounded-xl p-6">
@@ -708,8 +703,13 @@ export default function AdminPage() {
                     + Add track
                   </button>
                 )}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
                 <button type="button" onClick={setDashboardTrackShowAll} disabled={tracks.length === 0} className="px-3 py-2 border border-f1-border rounded-lg text-f1-muted hover:text-white text-sm disabled:opacity-50">
                   Show all
+                </button>
+                <button type="button" onClick={setDashboardTrackHideAll} className="px-3 py-2 border border-f1-border rounded-lg text-f1-muted hover:text-white text-sm">
+                  Hide all
                 </button>
                 <button type="button" onClick={handleSaveDashboardTracks} className="px-4 py-2 bg-f1-red text-white font-medium rounded-lg hover:bg-red-600 transition-colors">
                   Save
