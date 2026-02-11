@@ -157,7 +157,7 @@ export default function CarouselPage() {
     fetchCarouselInterval().then(setSlideIntervalMs).catch(() => {});
     const refetchInterval = setInterval(() => {
       fetchCarouselInterval().then(setSlideIntervalMs).catch(() => {});
-    }, 60000);
+    }, REFRESH_MS);
     return () => clearInterval(refetchInterval);
   }, []);
 
