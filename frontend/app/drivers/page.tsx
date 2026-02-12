@@ -155,7 +155,7 @@ export default function DriversPage() {
         {loading && displayTracks.length === 0 ? (
           <div className="text-techie-dim py-8">Loading…</div>
         ) : driversList.length === 0 ? (
-          <div className="text-techie-dim py-8">Keine Fahrer. Strecken im Dashboard auswählen und Zeiten anlegen.</div>
+          <div className="text-techie-dim py-8">No drivers. Select tracks in the dashboard and create lap times.</div>
         ) : (
           <div className="flex flex-wrap gap-2 mb-10">
             {driversList.map((name) => (
