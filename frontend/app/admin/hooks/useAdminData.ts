@@ -119,7 +119,7 @@ export function useAdminData() {
       setDashboardUpState(up);
       const intervalMs = await fetchCarouselInterval().catch(() => 10000);
       setCarouselIntervalSec(Math.round(intervalMs / 1000));
-      const view = await fetchDisplayView().catch(() => 'dashboard');
+      const view = await fetchDisplayView().catch((): DisplayView => 'dashboard');
       setDisplayViewState(view);
       const outlineIds = await getTrackOutlineTrackIds().catch(() => []);
       setTrackOutlineTrackIds(outlineIds);
