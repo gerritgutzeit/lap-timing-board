@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { TABS, type AdminTab } from './constants';
@@ -16,7 +16,7 @@ import {
 
 const VALID_TABS: AdminTab[] = ['dashboard', 'telemetry', 'updates', 'tracks', 'laps', 'backup'];
 
-export default function AdminPage() {
+function AdminPageContent() {
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const data = useAdminData();
@@ -204,5 +204,19 @@ export default function AdminPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-f1-dark p-4 md:p-8 flex items-center justify-center">
+          <p className="text-f1-muted">Loading…</p>
+        </main>
+      }
+    >
+      <AdminPageContent />
+    </Suspense>
   );
 }
