@@ -1,20 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { TABS, type AdminTab } from './constants';
 import { useAdminData } from './hooks/useAdminData';
 import {
   AdminDashboardTab,
   AdminTelemetryTab,
+  AdminUpdatesTab,
   AdminTracksTab,
   AdminLapsTab,
   AdminBackupTab,
 } from './components';
 
+const VALID_TABS: AdminTab[] = ['dashboard', 'telemetry', 'updates', 'tracks', 'laps', 'backup'];
+
 export default function AdminPage() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const data = useAdminData();
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && VALID_TABS.includes(tab as AdminTab)) {
+      setActiveTab(tab as AdminTab);
+    }
+  }, [searchParams]);
 
   return (
     <main className="min-h-screen bg-f1-dark p-4 md:p-8">
@@ -109,6 +121,8 @@ export default function AdminPage() {
             onSetDisplayView={data.handleSetDisplayView}
           />
         )}
+
+        {activeTab === 'updates' && <AdminUpdatesTab />}
 
         {activeTab === 'telemetry' && (
           <AdminTelemetryTab

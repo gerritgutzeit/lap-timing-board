@@ -35,6 +35,16 @@ if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS pending_lap_updates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      track_name TEXT NOT NULL,
+      lap_time_ms INTEGER NOT NULL,
+      lap_time TEXT NOT NULL,
+      driver_name TEXT NOT NULL,
+      suggested_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_pending_lap_updates_track_name ON pending_lap_updates(track_name);
   `);
   fs.writeFileSync(dbPath, Buffer.from(db.export()));
   db.close();

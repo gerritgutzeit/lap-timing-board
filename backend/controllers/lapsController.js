@@ -167,6 +167,51 @@ function deleteLapsByDriver(req, res) {
   }
 }
 
+/** Get fastest lap for a specific driver on a track (by track name). For telemetry: "is this a PB for this driver?". */
+function getFastestLapByTrackNameAndDriver(req, res) {
+  try {
+    let trackName = req.query.name;
+    let driverName = req.query.driver_name;
+    if (Array.isArray(trackName)) trackName = trackName[0];
+    if (Array.isArray(driverName)) driverName = driverName[0];
+    if (typeof trackName !== 'string' || !trackName.trim()) {
+      return res.status(400).json({ error: 'name (track) query is required' });
+    }
+    if (typeof driverName !== 'string' || !driverName.trim()) {
+      return res.status(400).json({ error: 'driver_name query is required' });
+    }
+    trackName = trackName.trim();
+    driverName = driverName.trim();
+    const db = getDb();
+    const track = db.prepare('SELECT id, name FROM tracks WHERE LOWER(TRIM(name)) = LOWER(?)').get(trackName);
+    if (!track) {
+      return res.status(404).json({ error: 'Track not found', fastest: null });
+    }
+    const fastest = db.prepare(`
+      SELECT l.id, l.driver_name, l.lap_time
+      FROM laps l
+      WHERE l.track_id = ? AND LOWER(TRIM(l.driver_name)) = LOWER(?)
+      ORDER BY l.lap_time ASC
+      LIMIT 1
+    `).get(track.id, driverName);
+    if (!fastest) {
+      return res.json({ trackId: track.id, trackName: track.name, driverName, fastest: null });
+    }
+    res.json({
+      trackId: track.id,
+      trackName: track.name,
+      driverName,
+      fastest: {
+        lapTime: fastest.lap_time,
+        driverName: fastest.driver_name,
+        lapId: fastest.id,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 /** Get fastest lap for a track matched by name (case-insensitive). For telemetry comparison. */
 function getFastestLapByTrackName(req, res) {
   try {
@@ -210,4 +255,4 @@ function getFastestLapByTrackName(req, res) {
   }
 }
 
-module.exports = { getAllLaps, getFastestLapsByTrack, getFastestLapByTrackName, createLap, updateLap, deleteLap, deleteLapsByDriver };
+module.exports = { getAllLaps, getFastestLapsByTrack, getFastestLapByTrackName, getFastestLapByTrackNameAndDriver, createLap, updateLap, deleteLap, deleteLapsByDriver };

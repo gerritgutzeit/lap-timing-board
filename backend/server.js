@@ -6,6 +6,7 @@ const lapsRouter = require('./routes/laps');
 const configRouter = require('./routes/config');
 const exportImportRouter = require('./routes/exportImport');
 const telemetryRouter = require('./routes/telemetry');
+const pendingLapsRouter = require('./routes/pendingLaps');
 const telemetryService = require('./udp/telemetryService');
 
 const app = express();
@@ -20,6 +21,7 @@ app.use('/api/laps', lapsRouter);
 app.use('/api/config', configRouter);
 app.use('/api/database', exportImportRouter);
 app.use('/api/telemetry', telemetryRouter);
+app.use('/api/pending-laps', pendingLapsRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

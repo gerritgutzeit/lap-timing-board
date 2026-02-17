@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import {
   fetchTelemetryLive,
   fetchFastestLapByTrackName,
+  fetchFastestLapByTrackNameAndDriver,
+  addPendingLap,
   type TelemetryLiveState,
   type FastestLapByTrackName,
 } from '@/lib/api';
@@ -50,12 +52,15 @@ export type TelemetryLiveViewState = {
   lastLapFullscreen: { lastLapTimeMs: number } | null;
   newRecordFullscreen: { lastLapTimeMs: number } | null;
   fastestDbLap: FastestLapByTrackName | null;
+  /** Current driver's best lap time on this track (m:ss.xxx), or null if none in DB. */
+  driverFastestLapTime: string | null;
 };
 
 /** Hook: poll telemetry, fetch fastest lap by track, manage fullscreen overlays. */
 export function useTelemetryLive(): TelemetryLiveViewState {
   const [telemetry, setTelemetry] = useState<TelemetryLiveState | null>(null);
   const [fastestDbLap, setFastestDbLap] = useState<FastestLapByTrackName | null>(null);
+  const [driverFastestLapTime, setDriverFastestLapTime] = useState<string | null>(null);
   const [lastLapFullscreen, setLastLapFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
   const [newRecordFullscreen, setNewRecordFullscreen] = useState<{ lastLapTimeMs: number } | null>(null);
   const prevLastLapTimeMsRef = useRef<number | null>(null);
@@ -65,30 +70,71 @@ export function useTelemetryLive(): TelemetryLiveViewState {
     (telemetry?.currentLapTimeMs != null && telemetry.currentLapTimeMs > 0);
 
   useEffect(() => {
-    if (!telemetry?.trackName?.trim()) {
+    const trackName = telemetry?.trackName?.trim();
+    if (!trackName) {
       setFastestDbLap(null);
       return;
     }
     let cancelled = false;
-    fetchFastestLapByTrackName(telemetry.trackName)
-      .then((data) => {
-        if (!cancelled) setFastestDbLap(data ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setFastestDbLap(null);
-      });
+    const fetchRecord = () => {
+      fetchFastestLapByTrackName(trackName)
+        .then((data) => {
+          if (!cancelled) setFastestDbLap(data ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setFastestDbLap(null);
+        });
+    };
+    fetchRecord();
+    const interval = setInterval(fetchRecord, 3000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [telemetry?.trackName]);
+
+  useEffect(() => {
+    const trackName = telemetry?.trackName?.trim();
+    const driverName = (telemetry?.driverName || 'Driver').trim();
+    if (!trackName || !driverName) {
+      setDriverFastestLapTime(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchDriverRecord = () => {
+      fetchFastestLapByTrackNameAndDriver(trackName, driverName)
+        .then((data) => {
+          if (!cancelled) setDriverFastestLapTime(data?.fastest?.lapTime ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setDriverFastestLapTime(null);
+        });
+    };
+    fetchDriverRecord();
+    const interval = setInterval(fetchDriverRecord, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [telemetry?.trackName, telemetry?.driverName]);
 
   useEffect(() => {
     const ms = telemetry?.lastLapTimeMs;
     if (ms == null || ms <= 0) return;
     if (prevLastLapTimeMsRef.current === ms) return;
     prevLastLapTimeMsRef.current = ms;
-    const delta = lastLapDeltaVsRecord(ms, fastestDbLap?.fastest?.lapTime);
-    if (delta != null && delta < 0) {
+    const deltaOverall = lastLapDeltaVsRecord(ms, fastestDbLap?.fastest?.lapTime);
+    const deltaDriver = lastLapDeltaVsRecord(ms, driverFastestLapTime ?? undefined);
+    const isStrictlyFasterThanDriverBest =
+      driverFastestLapTime == null || (deltaDriver != null && deltaDriver < -0.001);
+    if (telemetry?.trackName?.trim() && isStrictlyFasterThanDriverBest) {
+      addPendingLap({
+        trackName: telemetry.trackName.trim(),
+        lapTimeMs: ms,
+        driverName: (telemetry.driverName || 'Driver').trim(),
+      }).catch(() => {});
+    }
+    if (deltaOverall != null && deltaOverall < 0) {
       setNewRecordFullscreen({ lastLapTimeMs: ms });
       setLastLapFullscreen(null);
       const t = setTimeout(() => setNewRecordFullscreen(null), 10000);
@@ -98,7 +144,7 @@ export function useTelemetryLive(): TelemetryLiveViewState {
     setNewRecordFullscreen(null);
     const t = setTimeout(() => setLastLapFullscreen(null), 4000);
     return () => clearTimeout(t);
-  }, [telemetry?.lastLapTimeMs]);
+  }, [telemetry?.lastLapTimeMs, telemetry?.trackName, telemetry?.driverName, fastestDbLap?.fastest?.lapTime, driverFastestLapTime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +171,7 @@ export function useTelemetryLive(): TelemetryLiveViewState {
     lastLapFullscreen,
     newRecordFullscreen,
     fastestDbLap,
+    driverFastestLapTime,
   };
 }
 
@@ -139,6 +186,7 @@ export function TelemetryLiveViewUI({
   lastLapFullscreen,
   newRecordFullscreen,
   fastestDbLap,
+  driverFastestLapTime,
   className = '',
 }: TelemetryLiveViewUIProps) {
   if (!showLiveLapView) return null;
@@ -171,17 +219,32 @@ export function TelemetryLiveViewUI({
           <p className="font-mono font-bold text-techie-text text-7xl sm:text-8xl md:text-9xl tracking-tight tabular-nums text-center">
             {formatLapTimeFromMs(lastLapFullscreen.lastLapTimeMs)}
           </p>
-          <div className="mt-6 min-h-[3.5rem] flex items-center justify-center">
+          <div className="mt-6 min-h-[3.5rem] flex flex-col items-center justify-center gap-1">
             {(() => {
-              const delta = lastLapDeltaVsRecord(
+              const deltaRecord = lastLapDeltaVsRecord(
                 lastLapFullscreen.lastLapTimeMs,
                 fastestDbLap?.fastest?.lapTime
               );
-              if (delta == null || delta <= 0) return null;
+              const deltaDriver = lastLapDeltaVsRecord(
+                lastLapFullscreen.lastLapTimeMs,
+                driverFastestLapTime ?? undefined
+              );
+              const showRecord = deltaRecord != null && deltaRecord > 0;
+              const showDriver = deltaDriver != null && deltaDriver !== 0;
+              if (!showRecord && !showDriver) return null;
               return (
-                <p className="text-red-400 font-mono text-2xl sm:text-3xl tabular-nums">
-                  {formatDeltaSigned(delta)}
-                </p>
+                <>
+                  {showRecord && (
+                    <p className="text-red-400 font-mono text-xl sm:text-2xl tabular-nums">
+                      vs record {formatDeltaSigned(deltaRecord!)}
+                    </p>
+                  )}
+                  {showDriver && (
+                    <p className="text-techie-dim font-mono text-lg sm:text-xl tabular-nums">
+                      vs your best {formatDeltaSigned(deltaDriver!)}
+                    </p>
+                  )}
+                </>
               );
             })()}
           </div>
@@ -250,6 +313,38 @@ export function TelemetryLiveViewUI({
                 );
               })()}
             </p>
+            {driverFastestLapTime && (
+              <p
+                className="text-techie-dim text-sm mt-2 font-mono tabular-nums opacity-0 animate-telemetry-time-in"
+                style={{ animationDelay: '0.48s', animationFillMode: 'forwards' }}
+              >
+                Your best{' '}
+                <span className="inline-block w-[8ch] text-center text-techie-accent">
+                  {driverFastestLapTime}
+                </span>
+                {(() => {
+                  const deltaDriver = lastLapDeltaVsRecord(
+                    telemetry.lastLapTimeMs,
+                    driverFastestLapTime
+                  );
+                  if (deltaDriver == null) return null;
+                  return (
+                    <span
+                      className={`ml-2 text-xs font-mono tabular-nums px-1.5 py-0.5 rounded ${
+                        deltaDriver < 0
+                          ? 'text-green-400 bg-green-500/15'
+                          : 'text-red-400 bg-red-500/15'
+                      }`}
+                      title={
+                        deltaDriver < 0 ? 'Faster than your best' : 'Slower than your best'
+                      }
+                    >
+                      {formatDeltaSigned(deltaDriver)}
+                    </span>
+                  );
+                })()}
+              </p>
+            )}
             <p
               className="text-techie-dim text-sm mt-2 font-mono tabular-nums opacity-0 animate-telemetry-time-in"
               style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}

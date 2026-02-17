@@ -110,6 +110,17 @@ async function initDatabase() {
       value TEXT NOT NULL
     );
   `);
+  nativeDb.run(`
+    CREATE TABLE IF NOT EXISTS pending_lap_updates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      track_name TEXT NOT NULL,
+      lap_time_ms INTEGER NOT NULL,
+      lap_time TEXT NOT NULL,
+      driver_name TEXT NOT NULL,
+      suggested_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  nativeDb.run('CREATE INDEX IF NOT EXISTS idx_pending_lap_updates_track_name ON pending_lap_updates(track_name)');
 
   db = createDbWrapper(nativeDb);
   try {

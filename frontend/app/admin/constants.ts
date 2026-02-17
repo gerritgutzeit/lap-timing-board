@@ -1,8 +1,9 @@
-export type AdminTab = 'dashboard' | 'telemetry' | 'tracks' | 'laps' | 'backup';
+export type AdminTab = 'dashboard' | 'telemetry' | 'updates' | 'tracks' | 'laps' | 'backup';
 
 export const TABS: { id: AdminTab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'telemetry', label: 'Telemetry' },
+  { id: 'updates', label: 'Updates' },
   { id: 'tracks', label: 'Tracks' },
   { id: 'laps', label: 'Laps' },
   { id: 'backup', label: 'Backup' },

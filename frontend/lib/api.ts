@@ -106,6 +106,29 @@ export async function fetchFastestLapByTrackName(trackName: string): Promise<Fas
   return res.json();
 }
 
+/** Fastest lap for a specific driver on a track (by track name). For "driver's best" / PB check. */
+export type FastestLapByTrackNameAndDriver = {
+  trackId: number;
+  trackName: string;
+  driverName: string;
+  fastest: { lapTime: string; driverName: string; lapId: number } | null;
+};
+
+export async function fetchFastestLapByTrackNameAndDriver(
+  trackName: string,
+  driverName: string
+): Promise<FastestLapByTrackNameAndDriver | null> {
+  const track = String(trackName).trim();
+  const driver = String(driverName).trim();
+  if (!track || !driver) return null;
+  const res = await fetch(
+    `${getApiBase()}/laps/fastest-by-track-name-and-driver?name=${encodeURIComponent(track)}&driver_name=${encodeURIComponent(driver)}`
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to fetch driver fastest lap');
+  return res.json();
+}
+
 export async function createLap(driver_name: string, lap_time: string, track_id: number): Promise<Lap> {
   const res = await fetch(`${getApiBase()}/laps`, {
     method: 'POST',
@@ -377,4 +400,68 @@ export async function setUdpTelemetryDriverAlias(driverAlias: string): Promise<s
   if (!res.ok) throw new Error('Failed to save driver alias');
   const data = await res.json();
   return typeof data.driverAlias === 'string' ? data.driverAlias : '';
+}
+
+/** Pending lap update (faster-than-record from live telemetry); confirm adds to real laps. */
+export type PendingLapUpdate = {
+  id: number;
+  track_name: string;
+  lap_time_ms: number;
+  lap_time: string;
+  driver_name: string;
+  suggested_at: string;
+  /** Current lap time in DB for this driver on this track (will be replaced on confirm). Null if first lap. */
+  previous_lap_time?: string | null;
+};
+
+export async function fetchPendingLaps(): Promise<PendingLapUpdate[]> {
+  const res = await fetch(`${getApiBase()}/pending-laps`);
+  if (!res.ok) throw new Error('Failed to fetch pending updates');
+  return res.json();
+}
+
+export async function addPendingLap(data: {
+  trackName: string;
+  lapTimeMs: number;
+  driverName: string;
+}): Promise<PendingLapUpdate> {
+  const res = await fetch(`${getApiBase()}/pending-laps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to add pending update');
+  }
+  return res.json();
+}
+
+export async function updatePendingLap(id: number, driverName: string): Promise<PendingLapUpdate> {
+  const res = await fetch(`${getApiBase()}/pending-laps/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ driverName: String(driverName).trim() }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to update');
+  }
+  return res.json();
+}
+
+export async function discardPendingLap(id: number): Promise<void> {
+  const res = await fetch(`${getApiBase()}/pending-laps/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to discard');
+  }
+}
+
+export async function confirmPendingLap(id: number): Promise<void> {
+  const res = await fetch(`${getApiBase()}/pending-laps/${id}/confirm`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || 'Failed to confirm');
+  }
 }
