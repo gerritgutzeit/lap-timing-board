@@ -45,7 +45,8 @@ jobs:
 
       - name: Build desktop package
         env:
-          # Unsigned builds; avoids winCodeSign symlink issues on Windows
+          # Unsigned builds; avoids winCodeSign symlink issues on Windows.
+          # Publishing is handled by softprops/action-gh-release, not electron-builder.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run ${{ matrix.script }}
 

@@ -15,10 +15,10 @@
     "db:init": "npm run db:init --prefix backend",
     "desktop:prepare": "npm run build:frontend && node scripts/prepare-desktop.js",
     "desktop:dev": "npm run desktop:prepare && electron .",
-    "desktop:pack": "npm run desktop:prepare && electron-builder --dir",
-    "desktop:dist": "npm run desktop:prepare && electron-builder",
-    "desktop:dist:win": "npm run desktop:prepare && electron-builder --win",
-    "desktop:dist:mac": "npm run desktop:prepare && electron-builder --mac"
+    "desktop:pack": "npm run desktop:prepare && electron-builder --dir --publish never",
+    "desktop:dist": "npm run desktop:prepare && electron-builder --publish never",
+    "desktop:dist:win": "npm run desktop:prepare && electron-builder --win --publish never",
+    "desktop:dist:mac": "npm run desktop:prepare && electron-builder --mac --publish never"
   },
   "build": {
     "appId": "com.formel1dash.app",
@@ -28,6 +28,7 @@
       "output": "dist-desktop",
       "buildResources": "desktop/build"
     },
+    "publish": null,
     "files": [
       "desktop/**/*",
       "package.json"
