@@ -30,6 +30,7 @@
 - [Quick start](#quick-start)
 - [Development](#development)
   - [F1 25 live telemetry (UDP)](#f1-25-live-telemetry-udp)
+- [Desktop app (Windows / macOS)](#desktop-app-windows--macos)
 - [API](#api)
 - [Production & deployment](#production--deployment)
   - [Docker](#docker)
@@ -129,6 +130,33 @@ The dashboard can show **live lap time** from F1 25 when the game sends UDP tele
 - **Workaround – host network (Linux only):**  
   `docker compose -f docker-compose.yml -f docker-compose.host-backend.yml up -d`  
   Backend then listens on the host’s 3001 and 20777. **Windows/Mac** do not support host network; there, run the backend **outside** Docker (`cd backend && npm run dev`) for telemetry and keep the frontend in Docker; in the game use `127.0.0.1:20777`.
+
+---
+
+## Desktop app (Windows / macOS)
+
+The same stack runs as a local desktop app via **Electron**: it starts the Express API (SQLite + UDP) and the Next.js UI, then opens a window at `http://127.0.0.1:3000`. DB and uploads live under the OS user-data folder (not inside the install dir).
+
+**Prerequisites:** Node.js 18+
+
+```bash
+# one-time: install Electron tooling + app deps
+npm install
+npm run install:all
+
+# run desktop (builds frontend standalone, then opens Electron)
+npm run desktop:dev
+
+# create installers locally
+npm run desktop:dist:win   # Windows NSIS .exe
+npm run desktop:dist:mac   # macOS .dmg (run on a Mac)
+```
+
+Installers land in `dist-desktop/`.
+
+**GitHub Actions:** push a tag like `v1.0.0` (or run the **Desktop builds** workflow manually). CI builds on `windows-latest` and `macos-latest`, uploads artifacts, and attaches installers to the GitHub Release. Builds are **unsigned** by default (Windows SmartScreen / macOS Gatekeeper may warn). Signing/notarization can be added later with certificates and repository secrets.
+
+**F1 25 UDP:** same as local Node — point the game at this PC (often `127.0.0.1:20777`). Allow inbound UDP if needed.
 
 ---
 
@@ -233,6 +261,11 @@ frontend/
   app/                      # Next.js App Router (dashboard, admin, carousel)
   lib/api.ts                # API client
   components/               # CountryFlag, TrackOutline, etc.
+
+desktop/
+  main.js, preload.js       # Electron shell (spawns API + UI)
+scripts/prepare-desktop.js  # Copy Next static assets into standalone
+.github/workflows/desktop.yml
 ```
 
 ---

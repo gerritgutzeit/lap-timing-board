@@ -1,12 +1,16 @@
 const DEFAULT_API_PORT = '3001';
 
-/** Resolve API base URL: use build-time override, or in the browser use current host + port so the same build works when opened from another machine on the network. Exported for debugging (e.g. in console: check which URL the app uses). */
+/** Resolve API base URL: use build-time override, or in the browser use current host + port so the same build works when opened from another machine on the network. Exported for debugging (e.g. in console: check which URL the app uses). Desktop (Electron) loads http://127.0.0.1:3000 so this resolves to 127.0.0.1:3001. */
 export function getApiBase(): string {
   const buildUrl = process.env.NEXT_PUBLIC_API_URL;
   if (buildUrl && buildUrl !== 'undefined') return buildUrl;
-  if (typeof window !== 'undefined')
-    return `${window.location.protocol}//${window.location.hostname}:${DEFAULT_API_PORT}/api`;
-  return `http://localhost:${DEFAULT_API_PORT}/api`;
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname } = window.location;
+    if (hostname && protocol !== 'file:') {
+      return `${protocol}//${hostname}:${DEFAULT_API_PORT}/api`;
+    }
+  }
+  return `http://127.0.0.1:${DEFAULT_API_PORT}/api`;
 }
 
 /** URL for a track's outline image (used as fullscreen background when that track is selected). */

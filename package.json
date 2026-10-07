@@ -1,8 +1,10 @@
 {
-  "name": "f1-timing-dashboard",
+  "name": "formel1dash",
   "version": "1.0.0",
   "private": true,
-  "description": "F1 Timing Dashboard - fullstack app",
+  "author": "Formel1Dash",
+  "description": "F1 Timing Dashboard - fullstack app with optional desktop shell",
+  "main": "desktop/main.js",
   "scripts": {
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
     "dev:backend": "npm run dev --prefix backend",
@@ -10,6 +12,101 @@
     "start:backend": "npm start --prefix backend",
     "start:frontend": "npm start --prefix frontend",
     "build:frontend": "npm run build --prefix frontend",
-    "db:init": "npm run db:init --prefix backend"
+    "db:init": "npm run db:init --prefix backend",
+    "desktop:prepare": "npm run build:frontend && node scripts/prepare-desktop.js",
+    "desktop:dev": "npm run desktop:prepare && electron .",
+    "desktop:pack": "npm run desktop:prepare && electron-builder --dir",
+    "desktop:dist": "npm run desktop:prepare && electron-builder",
+    "desktop:dist:win": "npm run desktop:prepare && electron-builder --win",
+    "desktop:dist:mac": "npm run desktop:prepare && electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.formel1dash.app",
+    "productName": "Formel1Dash",
+    "copyright": "Copyright © Formel1Dash",
+    "directories": {
+      "output": "dist-desktop",
+      "buildResources": "desktop/build"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!uploads/**",
+          "!*.db",
+          "!Dockerfile",
+          "!.gitignore"
+        ]
+      },
+      {
+        "from": "frontend/.next/standalone",
+        "to": "frontend"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-Windows-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.sports",
+      "artifactName": "${productName}-${version}-macOS-${arch}.${ext}",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-Linux-${arch}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
   }
 }
